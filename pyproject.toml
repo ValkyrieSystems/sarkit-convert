@@ -1,0 +1,83 @@
+[project]
+name = "sarkit-convert"
+description = "Python library for converting SAR data to standard formats."
+authors = [
+    {name = "Valkyrie Systems Corporation", email = "info@govsco.com"},
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Scientific/Engineering",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "lxml>=5.1.0",
+    "numpy>=1.26.3",
+    "sarkit>=0.4.0",
+]
+
+[project.optional-dependencies]
+dev-lint = [
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+dev-test = [
+    "pytest>=7.4.4",
+]
+dev = [
+    "sarkit-convert[dev-test,dev-lint]",
+]
+
+[dependency-groups]
+test = [
+    "nox>=2024.3.2",
+]
+doc = [
+    "sphinx>=7.2.6",
+    "numpydoc>=1.7.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinxcontrib-autoprogram>=0.1.9",
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.version]
+source = "scm"
+write_to = "sarkit-convert/_version.py"
+write_template = "__version__ = '{}'"
+
+[tool.pdm]
+distribution = true
+
+[tool.ruff.lint]
+select = [
+    "E4",  # pycodestyle Import
+    "E7",  # pycodestyle Statement
+    "E9",  # pycodestyle Runtime
+    "F",   # pyflakes
+    "I",  # isort
+    "N",  # pep8-naming
+    "NPY",  # NumPy-specific
+    "ISC", # flake8-implicit-str-concat
+    "RUF022", # unsorted-dunder-all
+]
+preview = true
+
+[[tool.mypy.overrides]]
+module = [
+    "lxml.*",
+    "shapely.*",
+]
+ignore_missing_imports = true
+
