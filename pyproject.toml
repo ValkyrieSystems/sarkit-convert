@@ -19,16 +19,25 @@ classifiers = [
 ]
 dynamic = ["version"]
 
-dependencies = [
-    "lxml>=5.1.0",
-    "numpy>=1.26.3",
-    "sarkit>=0.4.0",
-]
+dependencies = []
 
 [project.optional-dependencies]
+iceye = [
+    "h5py>=3.12.1",
+    "lxml>=5.1.0",
+    "numpy>=1.26.3",
+    "python-dateutil>=2.9.0",
+    "sarkit[verification]>=0.5.0",
+]
+
+all = [
+    "sarkit-convert[iceye]",
+]
+
 dev-lint = [
     "ruff>=0.3.0",
     "mypy>=1.8.0",
+    "types-python-dateutil>=2.9.0",
 ]
 dev-test = [
     "pytest>=7.4.4",
@@ -54,7 +63,7 @@ build-backend = "pdm.backend"
 
 [tool.pdm.version]
 source = "scm"
-write_to = "sarkit-convert/_version.py"
+write_to = "sarkit_convert/_version.py"
 write_template = "__version__ = '{}'"
 
 [tool.pdm]
@@ -76,8 +85,8 @@ preview = true
 
 [[tool.mypy.overrides]]
 module = [
+    "h5py.*",
     "lxml.*",
     "shapely.*",
 ]
 ignore_missing_imports = true
-

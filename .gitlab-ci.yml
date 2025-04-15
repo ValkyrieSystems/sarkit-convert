@@ -1,0 +1,32 @@
+stages:
+  - build
+
+workflow:
+    rules:
+        # merge pipelines
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+          when: never
+        # branch pipelines
+        - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  before_script:
+  - pip install -U pdm
+  - export PDM_CHECK_UPDATE=false
+
+current_env:
+  image: python:3.12
+  stage: build
+  script:
+  - pdm lock -G:all
+  - pdm sync --no-default -G test
+  - pdm run nox
+
+min_env:
+  image: python:3.11
+  stage: build
+  script:
+  - pdm lock -G :all --strategy direct_minimal_versions
+  - pdm sync --no-default -G test
+  - pdm run nox -s test
