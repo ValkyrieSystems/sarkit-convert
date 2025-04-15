@@ -30,8 +30,19 @@ iceye = [
     "sarkit[verification]>=0.5.0",
 ]
 
+cosmo = [
+    "h5py>=3.12.1",
+    "lxml>=5.1.0",
+    "numpy>=1.26.3",
+    "python-dateutil>=2.9.0",
+    "sarkit[verification]>=0.5.0",
+    "scipy>=1.15.1",
+    "shapely>=2.0.2",
+]
+
 all = [
     "sarkit-convert[iceye]",
+    "sarkit-convert[cosmo]",
 ]
 
 dev-lint = [
@@ -87,6 +98,7 @@ preview = true
 module = [
     "h5py.*",
     "lxml.*",
+    "scipy.*",
     "shapely.*",
 ]
 ignore_missing_imports = true
