@@ -34,8 +34,21 @@ def lint(session):
 
 @nox.session
 def test(session):
-    for next_session in ("test_iceye",):
+    for next_session in ("test_core", "test_iceye", "test_cosmo"):
         session.notify(next_session)
+
+
+@nox.session
+def test_core(session):
+    session.run_install(
+        "pdm",
+        "sync",
+        "--prod",
+        "-G",
+        "dev-test",
+        external=True,
+    )
+    session.run("pytest", "tests/core")
 
 
 @nox.session
@@ -51,3 +64,18 @@ def test_iceye(session):
         external=True,
     )
     session.run("pytest", "tests/iceye")
+
+
+@nox.session
+def test_cosmo(session):
+    session.run_install(
+        "pdm",
+        "sync",
+        "--prod",
+        "-G",
+        "dev-test",
+        "-G",
+        "cosmo",
+        external=True,
+    )
+    session.run("pytest", "tests/cosmo")
