@@ -126,7 +126,16 @@ def compute_apc_poly(h5_attrs, ref_time, start_time, stop_time):
     return apc_poly
 
 
-def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
+def hdf5_to_sicd(
+    h5_filename,
+    sicd_filename,
+    classification,
+    ostaid,
+    img_str,
+    chan_index,
+    tx_polarizations,
+    tx_rcv_pols,
+):
     with h5py.File(h5_filename, "r") as h5file:
         h5_attrs = extract_attributes(h5file)
         mission_id = h5_attrs["Mission ID"]
@@ -134,7 +143,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
             dataset_str = "IMG"
         else:
             dataset_str = "SBI"
-        sample_data_h5_path = f"S01/{dataset_str}"
+        sample_data_h5_path = f"{img_str}/{dataset_str}"
         sample_data_shape = h5file[sample_data_h5_path].shape
         sample_data_dtype = h5file[sample_data_h5_path].dtype
 
@@ -143,7 +152,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
     collection_start_time = dateutil.parser.parse(h5_attrs["Scene Sensing Start UTC"])
     collection_stop_time = dateutil.parser.parse(h5_attrs["Scene Sensing Stop UTC"])
     collection_duration = (collection_stop_time - collection_start_time).total_seconds()
-    prf = h5_attrs["S01"]["PRF"]
+    prf = h5_attrs[img_str]["PRF"]
     num_pulses = int(np.ceil(collection_duration * prf))
     look = {"LEFT": 1, "RIGHT": -1}[h5_attrs["Look Side"]]
 
@@ -182,45 +191,46 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
 
     # Radar Collection
     center_frequency = h5_attrs["Radar Frequency"]
-    tx_pulse_length = h5_attrs["S01"]["Range Chirp Length"]
-    tx_fm_rate = h5_attrs["S01"]["Range Chirp Rate"]
+    tx_pulse_length = h5_attrs[img_str]["Range Chirp Length"]
+    tx_fm_rate = h5_attrs[img_str]["Range Chirp Rate"]
     tx_rf_bw = np.abs(tx_fm_rate * tx_pulse_length)
     tx_freq_min = center_frequency - 0.5 * tx_rf_bw
     tx_freq_max = center_frequency + 0.5 * tx_rf_bw
     tx_freq_start = center_frequency - (tx_pulse_length / 2 * tx_fm_rate)
-    adc_sample_rate = h5_attrs["S01"]["Sampling Rate"]
-    rcv_window_length = h5_attrs["S01"]["Echo Sampling Window Length"] / adc_sample_rate
-    if mission_id == "CSG":
-        tx_polarization = h5_attrs["Polarization"][0]
-        rcv_polarization = h5_attrs["Polarization"][1]
-    else:
-        tx_polarization = h5_attrs["S01"]["Polarisation"][0]
-        rcv_polarization = h5_attrs["S01"]["Polarisation"][1]
-    tx_rcv_polarization = f"{tx_polarization}:{rcv_polarization}"
+    adc_sample_rate = h5_attrs[img_str]["Sampling Rate"]
+    rcv_window_length = (
+        h5_attrs[img_str]["Echo Sampling Window Length"] / adc_sample_rate
+    )
+    tx_rcv_polarization = tx_rcv_pols[chan_index - 1]
+    tx_polarization = tx_rcv_polarization[0]
 
     # Grid
     assert h5_attrs["Lines Order"] == "EARLY-LATE"
     assert h5_attrs["Columns Order"] == "NEAR-FAR"
     spacings = np.array(
         [
-            h5_attrs["S01"][dataset_str]["Column Spacing"],
-            h5_attrs["S01"][dataset_str]["Line Spacing"],
+            h5_attrs[img_str][dataset_str]["Column Spacing"],
+            h5_attrs[img_str][dataset_str]["Line Spacing"],
         ]
     )
     intervals = np.array(
         [
-            h5_attrs["S01"][dataset_str]["Column Time Interval"],
-            h5_attrs["S01"][dataset_str]["Line Time Interval"],
+            h5_attrs[img_str][dataset_str]["Column Time Interval"],
+            h5_attrs[img_str][dataset_str]["Line Time Interval"],
         ]
     )
-    zd_az_0 = h5_attrs["S01"][dataset_str]["Zero Doppler Azimuth First Time"]
-    zd_rg_0 = h5_attrs["S01"][dataset_str]["Zero Doppler Range First Time"]
+    zd_az_0 = h5_attrs[img_str][dataset_str]["Zero Doppler Azimuth First Time"]
+    zd_rg_0 = h5_attrs[img_str][dataset_str]["Zero Doppler Range First Time"]
     row_bw = (
-        h5_attrs["S01"]["Range Focusing Bandwidth"] * 2 / scipy.constants.speed_of_light
+        h5_attrs[img_str]["Range Focusing Bandwidth"]
+        * 2
+        / scipy.constants.speed_of_light
     )
     row_wid = 1 / row_bw
     col_bw = (
-        min(h5_attrs["S01"]["Azimuth Focusing Transition Bandwidth"] * intervals[1], 1)
+        min(
+            h5_attrs[img_str]["Azimuth Focusing Transition Bandwidth"] * intervals[1], 1
+        )
         / spacings[1]
     )
     col_wid = 1 / col_bw
@@ -240,25 +250,25 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
     start_minus_ref = (collection_start_time - ref_time).total_seconds()
 
     if mission_id == "CSG":
-        range_ref = h5_attrs["S01"]["Range Polynomial Reference Time"]
-        azimuth_ref = h5_attrs["S01"]["Azimuth Polynomial Reference Time"]
-        azimuth_ref_zd = h5_attrs["S01"]["Azimuth Polynomial Reference Time - ZD"]
-        azimuth_first_time = h5_attrs["S01"]["B0001"]["Azimuth First Time"]
-        azimuth_last_time = h5_attrs["S01"]["B0001"]["Azimuth Last Time"]
+        range_ref = h5_attrs[img_str]["Range Polynomial Reference Time"]
+        azimuth_ref = h5_attrs[img_str]["Azimuth Polynomial Reference Time"]
+        azimuth_ref_zd = h5_attrs[img_str]["Azimuth Polynomial Reference Time - ZD"]
+        azimuth_first_time = h5_attrs[img_str]["B0001"]["Azimuth First Time"]
+        azimuth_last_time = h5_attrs[img_str]["B0001"]["Azimuth Last Time"]
         raw_times = np.linspace(azimuth_first_time, azimuth_last_time, num_grid_pts)
 
-        centroid_range_poly = h5_attrs["S01"][
+        centroid_range_poly = h5_attrs[img_str][
             "Doppler Centroid vs Range Time Polynomial"
         ]
-        centroid_azimuth_poly = h5_attrs["S01"][
+        centroid_azimuth_poly = h5_attrs[img_str][
             "Doppler Centroid vs Azimuth Time Polynomial - RAW"
         ]
         raw_doppler_centroid = npp.polyval(
             raw_times - azimuth_ref, centroid_azimuth_poly
         )
 
-        rate_range_poly = h5_attrs["S01"]["Doppler Rate vs Range Time Polynomial"]
-        rate_azimuth_poly = h5_attrs["S01"]["Doppler Rate vs Azimuth Time Polynomial"]
+        rate_range_poly = h5_attrs[img_str]["Doppler Rate vs Range Time Polynomial"]
+        rate_azimuth_poly = h5_attrs[img_str]["Doppler Rate vs Azimuth Time Polynomial"]
         raw_doppler_rate = npp.polyval(raw_times - azimuth_ref, rate_azimuth_poly)
 
         zd_times = raw_times - raw_doppler_centroid / raw_doppler_rate
@@ -498,6 +508,8 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
     sksicd.Poly2dType().set_elem(
         grid.find("./{*}Col/{*}DeltaKCOAPoly"), col_deltakcoa_poly
     )
+    rcs_row_sf = None
+    rcs_col_sf = None
     if row_window_name == "HAMMING":
         wgts = scipy.signal.windows.general_hamming(512, row_window_coeff, sym=True)
         wgtfunc = sicd.WgtFunct()
@@ -506,6 +518,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
         row_broadening_factor = utils.broadening_from_amp(wgts)
         row_wid = row_broadening_factor / row_bw
         sksicd.DblType().set_elem(grid.find("./{*}Row/{*}ImpRespWid"), row_wid)
+        rcs_row_sf = 1 + np.var(wgts) / np.mean(wgts) ** 2
     if col_window_name == "HAMMING":
         wgts = scipy.signal.windows.general_hamming(512, col_window_coeff, sym=True)
         wgtfunc = sicd.WgtFunct()
@@ -514,6 +527,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
         col_broadening_factor = utils.broadening_from_amp(wgts)
         col_wid = col_broadening_factor / col_bw
         sksicd.DblType().set_elem(grid.find("./{*}Col/{*}ImpRespWid"), col_wid)
+        rcs_col_sf = 1 + np.var(wgts) / np.mean(wgts) ** 2
 
     timeline = sicd.Timeline(
         sicd.CollectStart(collection_start_time.isoformat() + "Z"),
@@ -535,6 +549,16 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
     position = sicd.Position(sicd.ARPPoly())
     sksicd.XyzPolyType().set_elem(position.find("./{*}ARPPoly"), apc_poly)
 
+    rcv_channels = sicd.RcvChannels(
+        {"size": str(len(tx_rcv_pols))},
+    )
+    for ndx, tx_rcv_pol in enumerate(tx_rcv_pols):
+        rcv_channels.append(
+            sicd.ChanParameters(
+                {"index": str(ndx + 1)}, sicd.TxRcvPolarization(tx_rcv_pol)
+            )
+        )
+
     radar_collection = sicd.RadarCollection(
         sicd.TxFrequency(sicd.Min(str(tx_freq_min)), sicd.Max(str(tx_freq_max))),
         sicd.Waveform(
@@ -550,16 +574,19 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
             ),
         ),
         sicd.TxPolarization(tx_polarization),
-        sicd.RcvChannels(
-            {"size": "1"},
-            sicd.ChanParameters(
-                {"index": "1"}, sicd.TxRcvPolarization(tx_rcv_polarization)
-            ),
-        ),
+        rcv_channels,
     )
+    if len(tx_polarizations) > 1:
+        radar_collection.find("./{*}TxPolarization").text = "SEQUENCE"
+        tx_sequence = sicd.TxSequence({"size": str(len(tx_polarizations))})
+        for ndx, tx_pol in enumerate(tx_polarizations):
+            tx_sequence.append(
+                sicd.TxStep({"index": str(ndx + 1)}, sicd.TxPolarization(tx_pol))
+            )
+        rcv_channels.addprevious(tx_sequence)
 
     image_formation = sicd.ImageFormation(
-        sicd.RcvChanProc(sicd.NumChanProc("1"), sicd.ChanIndex("1")),
+        sicd.RcvChanProc(sicd.NumChanProc("1"), sicd.ChanIndex(str(chan_index))),
         sicd.TxRcvPolarizationProc(tx_rcv_polarization),
         sicd.TStartProc(str(0)),
         sicd.TEndProc(str(collection_duration)),
@@ -613,13 +640,14 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
             rescale_factor = h5_attrs["Rescaling Factor"]
             scale_factor /= rescale_factor * rescale_factor
             if h5_attrs.get("Calibration Constant Compensation Flag", None) == 0:
-                cal = h5_attrs["S01"]["Calibration Constant"]
+                cal = h5_attrs[img_str]["Calibration Constant"]
                 scale_factor /= cal
             betazero_poly = np.array([[scale_factor]])
             graze = np.deg2rad(float(sicd_xml_obj.findtext("./{*}SCPCOA/{*}GrazeAng")))
             twist = np.deg2rad(float(sicd_xml_obj.findtext("./{*}SCPCOA/{*}TwistAng")))
             sigmazero_poly = betazero_poly * np.cos(graze) * np.cos(twist)
             gammazero_poly = betazero_poly / np.tan(graze) * np.cos(twist)
+
             radiometric = sicd.Radiometric(
                 sicd.SigmaZeroSFPoly(), sicd.BetaZeroSFPoly(), sicd.GammaZeroSFPoly()
             )
@@ -632,6 +660,14 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
             sksicd.Poly2dType().set_elem(
                 radiometric.find("./{*}GammaZeroSFPoly"), gammazero_poly
             )
+            if rcs_row_sf and rcs_col_sf:
+                rcssf_poly = betazero_poly * (
+                    rcs_row_sf * rcs_col_sf / (row_bw * col_bw)
+                )
+                radiometric.find("./{*}SigmaZeroSFPoly").addprevious(sicd.RCSSFPoly())
+                sksicd.Poly2dType().set_elem(
+                    radiometric.find("./{*}RCSSFPoly"), rcssf_poly
+                )
             sicd_xml_obj.find("./{*}RMA").addprevious(radiometric)
 
     # Add Geodata Corners
@@ -716,7 +752,9 @@ def main(args=None):
         help="content of the /SICD/CollectionInfo/Classification node in the SICD XML",
     )
     parser.add_argument(
-        "output_sicd_file", type=pathlib.Path, help="path of the output SICD file"
+        "output_sicd_file",
+        type=pathlib.Path,
+        help='path of the output SICD file. The string "{pol}" will be replaced with polarization for multiple images',
     )
     parser.add_argument(
         "--ostaid",
@@ -725,12 +763,59 @@ def main(args=None):
     )
     config = parser.parse_args(args)
 
-    hdf5_to_sicd(
-        config.input_h5_file,
-        config.output_sicd_file,
-        classification=config.classification,
-        ostaid=config.ostaid,
-    )
+    tx_polarizations = []
+    with h5py.File(config.input_h5_file, "r") as h5file:
+        acquisition_mode = h5file.attrs["Acquisition Mode"].decode()
+        if "scan" in acquisition_mode.lower():
+            raise ValueError("ScanSar modes not supported")
+        mission_id = h5file.attrs["Mission ID"].decode()
+        images = dict()
+        if mission_id == "CSG":
+            img_str = "S01"
+            polarization = h5file.attrs["Polarization"].decode()
+            filename = pathlib.Path(
+                str(config.output_sicd_file).format(pol=polarization)
+            )
+            images[img_str] = {
+                "polarization": polarization,
+                "chan_index": 1,
+                "filename": filename,
+            }
+            tx_polarizations.append(polarization[0])
+            tx_rcv_pols = [f"{polarization[0]}:{polarization[1]}"]
+        else:
+            img_ndx = 1
+            images = dict()
+            tx_rcv_pols = []
+            while (img_str := f"S{img_ndx:02}") in h5file:
+                polarization = h5file[img_str].attrs["Polarisation"].decode()
+                filename = pathlib.Path(
+                    str(config.output_sicd_file).format(pol=polarization)
+                )
+                images[img_str] = {
+                    "polarization": polarization,
+                    "chan_index": img_ndx,
+                    "filename": filename,
+                }
+                tx_rcv_pols.append(f"{polarization[0]}:{polarization[1]}")
+                if (tx_polarization := polarization[0]) not in tx_polarizations:
+                    tx_polarizations.append(tx_polarization)
+                img_ndx += 1
+
+    if len(images) != len(set([image["filename"] for image in images.values()])):
+        raise ValueError("Output filename does not include necessary polarization slug")
+
+    for img_str, img_info in images.items():
+        hdf5_to_sicd(
+            h5_filename=config.input_h5_file,
+            sicd_filename=img_info["filename"],
+            classification=config.classification,
+            ostaid=config.ostaid,
+            img_str=img_str,
+            chan_index=img_info["chan_index"],
+            tx_polarizations=tx_polarizations,
+            tx_rcv_pols=tx_rcv_pols,
+        )
 
 
 if __name__ == "__main__":
