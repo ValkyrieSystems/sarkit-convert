@@ -9,6 +9,9 @@ Common utility functions for use in SICD converters
 
 import numpy as np
 import numpy.polynomial.polynomial as npp
+import sarkit.wgs84
+
+RNIIRS_FIT_PARAMETERS = np.array([3.4761, 0.4357], dtype="float64")
 
 
 def fit_state_vectors(
@@ -107,3 +110,102 @@ def broadening_from_amp(amp_vals, threshold_db=None):
     ).argmin()
 
     return width / fft_size * amp_vals.size
+
+
+def _get_sigma0_noise(xml_helper):
+    """Calculate the absolute noise estimate, in sigma0 power units."""
+
+    if xml_helper.element_tree.find("./{*}Radiometric/{*}SigmaZeroSFPoly") is None:
+        raise ValueError(
+            "Radiometric.SigmaZeroSFPoly is not populated, so no sigma0 noise estimate can be derived."
+        )
+    if (
+        xml_helper.load("./{*}Radiometric/{*}NoiseLevel/{*}NoiseLevelType")
+        != "ABSOLUTE"
+    ):
+        raise ValueError(
+            "Radiometric.NoiseLevel.NoiseLevelType is not `ABSOLUTE` so no noise estimate can be derived."
+        )
+
+    noisepoly = xml_helper.load("./{*}Radiometric/{*}NoiseLevel/{*}NoisePoly")
+    scp_noise_db = noisepoly[0, 0]
+    scp_noise = 10 ** (scp_noise_db / 10)
+
+    # convert to SigmaZero value
+    sigma_zero_sf = xml_helper.load("./{*}Radiometric/{*}SigmaZeroSFPoly")
+    scp_noise *= sigma_zero_sf[0, 0]
+
+    return scp_noise
+
+
+def _get_default_signal_estimate(xml_helper):
+    """Gets default signal for use in the RNIIRS calculation.
+
+    This will be 1.0 for copolar (or unknown) collections, and 0.25 for cross-pole collections."""
+
+    pol = xml_helper.load("./{*}ImageFormation/{*}TxRcvPolarizationProc")
+    if pol is None or ":" not in pol:
+        return 1.0
+
+    pols = pol.split(":")
+
+    return 1.0 if pols[0] == pols[1] else 0.25
+
+
+def _estimate_rniirs(information_density):
+    """Calculate an RNIIRS estimate from the information density or Shannon-Hartley channel capacity.
+
+    This mapping has been empirically determined by fitting Shannon-Hartley channel
+    capacity to RNIIRS for some sample images.
+
+    To maintain positivity of the estimated rniirs, this transitions to a linear
+    model.
+
+    """
+    a = RNIIRS_FIT_PARAMETERS
+    iim_transition = np.exp(1 - np.log(2) * a[0] / a[1])
+    slope = a[1] / (iim_transition * np.log(2))
+
+    if not isinstance(information_density, np.ndarray):
+        information_density = np.array(information_density, dtype="float64")
+    orig_ndim = information_density.ndim
+    if orig_ndim == 0:
+        information_density = np.reshape(information_density, (1,))
+
+    out = np.empty(information_density.shape, dtype="float64")
+    mask = information_density > iim_transition
+    mask_other = ~mask
+    if np.any(mask):
+        out[mask] = a[0] + a[1] * np.log2(information_density[mask])
+    if np.any(mask_other):
+        out[mask_other] = slope * information_density[mask_other]
+
+    if orig_ndim == 0:
+        return float(out[0])
+    return out
+
+
+def get_rniirs_estimate(xml_helper):
+    """This calculates the value(s) for RNIIRS and information density for SICD, according to the RGIQE."""
+    scp_noise = _get_sigma0_noise(xml_helper)
+    signal = _get_default_signal_estimate(xml_helper)
+
+    u_row = xml_helper.load("./{*}Grid/{*}Row/{*}UVectECF")
+    u_col = xml_helper.load("./{*}Grid/{*}Col/{*}UVectECF")
+    ipn = np.cross(u_row, u_col)
+    u_ipn = ipn / np.linalg.norm(ipn)
+
+    scp_llh = xml_helper.load("./{*}GeoData/{*}SCP/{*}LLH")
+    u_gpn = sarkit.wgs84.up(scp_llh)
+
+    bw_sf = np.dot(u_gpn, u_ipn)
+    bw_area = abs(
+        xml_helper.load("./{*}Grid/{*}Row/{*}ImpRespBW")
+        * xml_helper.load("./{*}Grid/{*}Col/{*}ImpRespBW")
+        * bw_sf
+    )
+
+    inf_density = float(bw_area * np.log2(1 + signal / scp_noise))
+    rniirs = float(_estimate_rniirs(inf_density))
+
+    return inf_density, rniirs

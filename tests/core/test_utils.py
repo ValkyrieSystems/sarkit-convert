@@ -1,8 +1,21 @@
+import pathlib
+
+import lxml.etree
 import numpy as np
 import numpy.polynomial.polynomial as npp
 import pytest
+import sarkit.sicd as sksicd
 
 import sarkit_convert._utils as utils
+
+NSMAP = {
+    "sicd": "urn:SICD:1.4.0",
+}
+
+
+DATAPATH = pathlib.Path(__file__).parents[2] / "data"
+
+good_sicd_xml_path = DATAPATH / "example-sicd-1.3.0.xml"
 
 
 def test_polyfit2d():
@@ -155,3 +168,42 @@ def test_broadening_from_amp_smoke():
     amps = np.ones(1024)
     broadening = utils.broadening_from_amp(amps)
     assert np.isclose(broadening, 0.8859, rtol=1e-4)
+
+
+def test_get_rniirs_estimate_smoke():
+    sicd_etree = lxml.etree.parse(good_sicd_xml_path)
+    xml_helper = sksicd.XmlHelper(sicd_etree)
+
+    inf_density, rniirs = utils.get_rniirs_estimate(xml_helper)
+    assert inf_density != 0.0
+    assert rniirs != 0.0
+
+    xml_helper.set("./{*}ImageFormation/{*}TxRcvPolarizationProc", "H:V")
+    xpol_inf_density, xpol_rniirs = utils.get_rniirs_estimate(xml_helper)
+    assert inf_density > xpol_inf_density
+    assert rniirs > xpol_rniirs
+
+
+def test_get_rniirs_estimate_failure():
+    sicd_etree = lxml.etree.parse(good_sicd_xml_path)
+    xml_helper = sksicd.XmlHelper(sicd_etree)
+    xml_helper.set("./{*}Radiometric/{*}NoiseLevel/{*}NoiseLevelType", "NOTABSOLUTE")
+
+    with pytest.raises(
+        ValueError,
+        match="Radiometric.NoiseLevel.NoiseLevelType is not `ABSOLUTE` so no noise estimate can be derived.",
+    ):
+        _, _ = utils.get_rniirs_estimate(xml_helper)
+
+    xml_helper.set("./{*}Radiometric/{*}NoiseLevel/{*}NoiseLevelType", "ABSOLUTE")
+    sigma_zero_sf_poly_node = xml_helper.element_tree.find(
+        "./{*}Radiometric/{*}SigmaZeroSFPoly"
+    )
+    parent = sigma_zero_sf_poly_node.getparent()
+    parent.remove(sigma_zero_sf_poly_node)
+
+    with pytest.raises(
+        ValueError,
+        match="Radiometric.SigmaZeroSFPoly is not populated, so no sigma0 noise estimate can be derived.",
+    ):
+        _, _ = utils.get_rniirs_estimate(xml_helper)
