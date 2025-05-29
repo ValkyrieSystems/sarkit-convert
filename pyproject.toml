@@ -38,9 +38,17 @@ cosmo = [
     "shapely>=2.0.2",
 ]
 
+tsx = [
+    "lxml>=5.1.0",
+    "python-dateutil>=2.9.0",
+    "sarkit[verification]>=0.5.0",
+    "scipy>=1.15.1",
+]
+
 all = [
     "sarkit-convert[iceye]",
     "sarkit-convert[cosmo]",
+    "sarkit-convert[tsx]",
 ]
 
 dev-lint = [

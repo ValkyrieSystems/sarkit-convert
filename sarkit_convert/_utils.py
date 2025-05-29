@@ -7,6 +7,8 @@ Common utility functions for use in SICD converters
 
 """
 
+import itertools
+
 import numpy as np
 import numpy.polynomial.polynomial as npp
 import sarkit.wgs84
@@ -58,28 +60,68 @@ def fit_state_vectors(
     )[0]
 
 
-def polyfit2d(x, y, z, deg1, deg2):
-    """Fits 2d polynomials to data.
-
-    Example
-    -------
-    >>> x, y = np.meshgrid(np.linspace(-1, 1, 51), np.linspace(-2, 2, 53), indexing="ij")
-    >>> poly = np.ones((3, 4))
-    >>> z = npp.polyval2d(x, y, poly)
-    >>> np.allclose(polyfit2d(x.flatten(), y.flatten(), z.reshape(2, -1).T, 2, 3), poly)
-    True
-
-    """
+def polyfit2d(x, y, z, order1, order2):
+    """Fits 2d polynomials to data."""
     if x.ndim != 1 or y.ndim != 1:
         raise ValueError("Expected x and y to be one dimensional")
     if not 0 < z.ndim <= 2:
         raise ValueError("Expected z to be one or two dimensional")
     if not x.shape[0] == y.shape[0] == z.shape[0]:
         raise ValueError("Expected x, y, z to have same leading dimension size")
-    vander = npp.polyvander2d(x, y, (deg1, deg2))
+    vander = npp.polyvander2d(x, y, (order1, order2))
     scales = np.sqrt(np.square(vander).sum(0))
     coefs_flat = (np.linalg.lstsq(vander / scales, z, rcond=-1)[0].T / scales).T
-    return coefs_flat.reshape(deg1 + 1, deg2 + 1)
+    return coefs_flat.reshape(order1 + 1, order2 + 1)
+
+
+def polyfit2d_tol(x, y, z, max_order_x, max_order_y, tol, strict_tol=False):
+    """Fits 2D polys of minimum order to bring the maximum residual under tol.
+
+    Args
+    ----
+    x: array-like
+        First independent variable values. One dimensional.
+    y: array-like
+        Second independent variable values. One dimensional.
+    z: array-like
+        Dependent variable values. Leading dimension must have same size as `x` and `y` .
+    max_order_x: int
+        The maximum order in `x` to consider
+    max_order_y: int
+        The maximum order in `y` to consider
+    tol: float
+        The maximum residual requested.
+    strict_tol: bool
+        ``True`` if an exception should be raised if `tol` is not met with allowed orders.
+
+        If ``False``, return best fitting polynomial of allowed order.
+
+    Returns
+    -------
+    poly
+        2d polynomials of common orders no greater than `(max_order_x, max_order_y)` .
+
+    Raises
+    ------
+    `ValueError`
+        If `strict_tol` and tolerance is not reached.
+
+    """
+    orders = sorted(
+        list(itertools.product(range(max_order_x + 1), range(max_order_y + 1))),
+        key=lambda x: (x[0] + 1) * (x[1] + 1),
+    )
+    best = None
+    for order_x, order_y in orders:
+        poly = polyfit2d(x, y, z, order_x, order_y)
+        resid = np.abs(z - np.moveaxis(npp.polyval2d(x, y, poly), 0, -1)).max()
+        if resid <= tol:
+            return poly
+        if best is None or resid < best[1]:
+            best = (poly, resid)
+    if strict_tol:
+        raise ValueError("Max order exceeded before tolerance was reached")
+    return best[0]
 
 
 def broadening_from_amp(amp_vals, threshold_db=None):
