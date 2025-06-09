@@ -45,10 +45,17 @@ tsx = [
     "scipy>=1.15.1",
 ]
 
+sentinel = [
+    "python-dateutil>=2.9.0",
+    "scipy>=1.15.1",
+    "tifffile>=2025.5.10",
+]
+
 all = [
     "sarkit-convert[iceye]",
     "sarkit-convert[cosmo]",
     "sarkit-convert[tsx]",
+    "sarkit-convert[sentinel]",
 ]
 
 dev-lint = [
