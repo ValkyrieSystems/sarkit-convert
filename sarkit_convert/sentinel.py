@@ -846,20 +846,238 @@ def _collect_burst_info(product_root_node, swath_info):
         return _finalize_stripmap()
 
 
-def _calc_radiometric_info(cal_file_name, base_sicd_info, sicds):
-    # TODO: Compute radiometric polys
+def _calc_radiometric_info(cal_file_name, swath_info, burst_info_list):
+    """Compute radiometric polys"""
+    cal_root_node = et.parse(cal_file_name).getroot()
+    cal_vector_list = cal_root_node.findall(
+        "./{*}calibrationVectorList/{*}calibrationVector"
+    )
+    line = np.empty((len(cal_vector_list),), dtype=np.float64)
+    pixel, sigma, beta, gamma = [], [], [], []
+    for i, cal_vector in enumerate(cal_vector_list):
+        line[i] = float(cal_vector.find("./line").text)
+        pixel.append(
+            np.fromstring(cal_vector.find("./pixel").text, sep=" ", dtype=np.float64)
+        )
+        sigma.append(
+            np.fromstring(
+                cal_vector.find("./sigmaNought").text, sep=" ", dtype=np.float64
+            )
+        )
+        beta.append(
+            np.fromstring(
+                cal_vector.find("./betaNought").text, sep=" ", dtype=np.float64
+            )
+        )
+        gamma.append(
+            np.fromstring(cal_vector.find("./gamma").text, sep=" ", dtype=np.float64)
+        )
+
+    lines_per_burst = swath_info["num_cols"]
+    pixel = np.array(pixel)
+    sigma = np.array(sigma)
+    beta = np.array(beta)
+    gamma = np.array(gamma)
+    # adjust sentinel values for sicd convention (square and invert)
+    sigma = 1.0 / (sigma * sigma)
+    beta = 1.0 / (beta * beta)
+    gamma = 1.0 / (gamma * gamma)
+
+    for idx, burst_info in enumerate(burst_info_list):
+        valid_lines = (line >= idx * lines_per_burst) & (
+            line < (idx + 1) * lines_per_burst
+        )
+        valid_count = np.sum(valid_lines)
+        if valid_count == 0:
+            # this burst contained no useful calibration data
+            return
+
+        first_row = swath_info["first_row"]
+        first_col = swath_info["first_col"]
+        scp_row = swath_info["scp_pixel"][0]
+        scp_col = swath_info["scp_pixel"][1]
+        row_ss = swath_info["row_ss"]
+        col_ss = swath_info["col_ss"]
+        coords_rg = (pixel[valid_lines] + first_row - scp_row) * row_ss
+        coords_az = (line[valid_lines] + first_col - scp_col) * col_ss
+        # NB: coords_rg = (valid_count, M) and coords_az = (valid_count, )
+        coords_az = np.repeat(coords_az, pixel.shape[1])
+        if valid_count > 1:
+            coords_az = coords_az.reshape((valid_count, -1))
+
+        burst_info["radiometric"]["sigma_zero_poly_coefs"] = utils.polyfit2d(
+            coords_rg.flatten(),
+            coords_az.flatten(),
+            sigma[valid_lines, :].flatten(),
+            2,
+            2,
+        )
+        burst_info["radiometric"]["beta_zero_poly_coefs"] = utils.polyfit2d(
+            coords_rg.flatten(),
+            coords_az.flatten(),
+            beta[valid_lines, :].flatten(),
+            2,
+            2,
+        )
+        burst_info["radiometric"]["gamma_zero_poly_coefs"] = utils.polyfit2d(
+            coords_rg.flatten(),
+            coords_az.flatten(),
+            gamma[valid_lines, :].flatten(),
+            2,
+            2,
+        )
+
+        range_weight_f = azimuth_weight_f = 1.0
+        row_wgt_funct = swath_info["row_wgts"]
+        var = np.var(row_wgt_funct)
+        mean = np.mean(row_wgt_funct)
+        range_weight_f += var / (mean * mean)
+
+        col_wgt_funct = swath_info["col_wgts"]
+        var = np.var(col_wgt_funct)
+        mean = np.mean(col_wgt_funct)
+        azimuth_weight_f += var / (mean * mean)
+        sp_area = (range_weight_f * azimuth_weight_f) / (
+            swath_info["row_imp_res_bw"] * swath_info["col_imp_res_bw"]
+        )
+
+        burst_info["radiometric"]["rcs_sf_poly_coefs"] = (
+            burst_info["radiometric"]["beta_zero_poly_coefs"] * sp_area
+        )
 
     return
 
 
-def _calc_noise_level_info(noise_file_name, base_sicd_info, sicds):
-    # TODO: Compute noise poly and update XML
+def _calc_noise_level_info(noise_file_name, swath_info, burst_info_list):
+    """Compute noise poly"""
+    noise_root_node = et.parse(noise_file_name).getroot()
+    mode_id = swath_info["mode_id"]
+    lines_per_burst = swath_info["num_cols"]
+    range_size_pixels = swath_info["num_rows"]
 
-    return
+    def _extract_vector(stem):
+        lines, pixels, noises = [], [], []
+        noise_vector_list = noise_root_node.findall(
+            f"./{stem:s}VectorList/{stem:s}Vector"
+        )
+        for i, noise_vector in enumerate(noise_vector_list):
+            line = np.fromstring(
+                noise_vector.find("./line").text, dtype=np.int64, sep=" "
+            )
+            # some datasets have noise vectors for negative lines - ignore these
+            if np.all(line < 0):
+                continue
 
+            pixel_node = noise_vector.find(
+                "./pixel"
+            )  # does not exist for azimuth noise
+            if pixel_node is not None:
+                pixel = np.fromstring(pixel_node.text, dtype=np.int64, sep=" ")
+            else:
+                pixel = None
+            noise = np.fromstring(
+                noise_vector.find(f"./{stem}Lut").text, dtype=np.float64, sep=" "
+            )
+            # some datasets do not have any noise data (all 0's) - skipping these will throw things into disarray
+            if not np.all(noise == 0):
+                # convert noise to dB - what about -inf values?
+                noise = 10 * np.log10(noise)
+            assert isinstance(noise, np.ndarray)
 
-def _calc_rniirs_info(sicds):
-    # TODO: Add RNIIRS info
+            # do some validity checks
+            if (
+                (mode_id == "IW")
+                and np.any((line % lines_per_burst) != 0)
+                and (i != len(noise_vector_list) - 1)
+            ):
+                # NB: the final burst has different timing
+                raise ValueError(
+                    "Noise file should have one lut per burst, but more are present"
+                )
+            if (pixel is not None) and (pixel[-1] > range_size_pixels):
+                raise ValueError("Noise file has more pixels in LUT than range size")
+
+            lines.append(line)
+            pixels.append(pixel)
+            noises.append(noise)
+        return lines, pixels, noises
+
+    # extract noise vectors
+    if noise_root_node.find("./noiseVectorList") is not None:
+        # probably prior to March 2018
+        range_line, range_pixel, range_noise = _extract_vector("noise")
+    else:
+        # noiseRange and noiseAzimuth fields began in March 2018
+        range_line, range_pixel, range_noise = _extract_vector("noiseRange")
+    range_line = np.concatenate(range_line, axis=0)
+
+    if noise_root_node.find("./noiseAzimuthVectorList/noiseAzimuthVector") is not None:
+        azimuth_line, _, azimuth_noise = _extract_vector("noiseAzimuth")
+        azimuth_line = np.concatenate(azimuth_line, axis=0)
+    else:
+        azimuth_line, azimuth_noise = None, None
+
+    rg_poly_order = min(5, range_pixel[0].size - 1)
+    first_row = swath_info["first_row"]
+    first_col = swath_info["first_col"]
+    scp_row = swath_info["scp_pixel"][0]
+    scp_col = swath_info["scp_pixel"][1]
+    row_ss = swath_info["row_ss"]
+    col_ss = swath_info["col_ss"]
+    for idx, burst_info in enumerate(burst_info_list):
+        if mode_id[0] == "S":
+            # STRIPMAP - all LUTs apply
+            az_poly_order = min(4, len(range_line) - 1)
+            coords_rg = (range_pixel[0] + first_row - scp_row) * row_ss
+            coords_az = (range_line + first_col - scp_col) * col_ss
+
+            coords_az_2d, coords_rg_2d = np.meshgrid(coords_az, coords_rg)
+
+            noise_poly = utils.polyfit2d(
+                coords_rg_2d.flatten(),
+                coords_az_2d.flatten(),
+                np.array(range_noise).flatten(),
+                rg_poly_order,
+                az_poly_order,
+            )
+        else:
+            # TOPSAR has single LUT per burst
+            # Treat range and azimuth polynomial components as weakly independent
+            if idx >= len(range_pixel):
+                raise ValueError(
+                    f"We have run out of noise information. Current index = {idx}, length of noise array = {len(range_pixel)}."
+                )
+            rp_array = range_pixel[idx]
+            rn_array = range_noise[idx]
+            coords_rg = (rp_array + first_row - scp_row) * row_ss
+
+            rg_poly = np.array(npp.polyfit(coords_rg, rn_array, rg_poly_order))
+            az_poly = None
+            if azimuth_noise is not None:
+                line0 = lines_per_burst * idx
+                coords_az = (azimuth_line[0] - line0 - scp_col) * col_ss
+                valid_lines = (azimuth_line[0] >= line0) & (
+                    azimuth_line[0] < line0 + lines_per_burst
+                )
+                valid_count = np.sum(valid_lines)
+                if valid_count > 1:
+                    az_poly_order = min(2, valid_count - 1)
+                    az_poly = np.array(
+                        npp.polyfit(
+                            coords_az[valid_lines],
+                            azimuth_noise[valid_lines],
+                            az_poly_order,
+                        )
+                    )
+            if az_poly is not None:
+                noise_poly = np.zeros((rg_poly.size, az_poly.size), dtype=np.float64)
+                noise_poly[:, 0] += rg_poly
+                noise_poly[0, :] += az_poly
+            else:
+                noise_poly = np.reshape(rg_poly, (-1, 1))
+
+        burst_info["radiometric"]["noise_level_type"] = "ABSOLUTE"
+        burst_info["radiometric"]["noise_poly_coefs"] = noise_poly
 
     return
 
@@ -898,6 +1116,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         ),
     )
 
+    # Image Creation
     image_creation_node = em.ImageCreation(
         em.Application(base_info["creation_application"]),
         em.DateTime(base_info["creation_date_time"].strftime("%Y-%m-%dT%H:%M:%SZ")),
@@ -1122,18 +1341,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         em.RgAutofocus(swath_info["rg_autofocus"]),
     )
 
-    # TODO: Radiometric
-    # radiometric_node = em.Radiometric(
-    #     em.NoiseLevel(
-    #         em.NoiseLevelType(""),
-    #         em.NoisePoly(),
-    #     ),
-    #     em.RCSSFPoly(),
-    #     em.SigmaZeroSFPoly(),
-    #     em.BetaZeroSFPoly(),
-    #     em.GammaZeroSFPoly(),
-    # )
-
+    # RMA
     rma_node = em.RMA(
         em.RMAlgoType(swath_info["rm_algo_type"]),
         em.ImageType(swath_info["image_type"]),
@@ -1167,9 +1375,44 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         position_node,
         radar_collection_node,
         image_formation_node,
-        # radiometric_node
         rma_node,
     )
+    breakpoint()
+    # Add Radiometric after Sentinel baseline processing calibration update on 25 Nov 2015.
+    if "radiometric" in burst_info:
+        # Radiometric
+        radiometric_node = em.Radiometric(
+            em.NoiseLevel(
+                em.NoiseLevelType(burst_info["radiometric"]["noise_level_type"]),
+                em.NoisePoly(),
+            ),
+            em.RCSSFPoly(),
+            em.SigmaZeroSFPoly(),
+            em.BetaZeroSFPoly(),
+            em.GammaZeroSFPoly(),
+        )
+        sksicd.Poly2dType().set_elem(
+            radiometric_node.find("./{*}NoiseLevel/{*}NoisePoly"),
+            burst_info["radiometric"]["noise_poly_coefs"],
+        )
+        sksicd.Poly2dType().set_elem(
+            radiometric_node.find("./{*}RCSSFPoly"),
+            burst_info["radiometric"]["rcs_sf_poly_coefs"],
+        )
+        sksicd.Poly2dType().set_elem(
+            radiometric_node.find("./{*}SigmaZeroSFPoly"),
+            burst_info["radiometric"]["sigma_zero_poly_coefs"],
+        )
+        sksicd.Poly2dType().set_elem(
+            radiometric_node.find("./{*}BetaZeroSFPoly"),
+            burst_info["radiometric"]["beta_zero_poly_coefs"],
+        )
+        sksicd.Poly2dType().set_elem(
+            radiometric_node.find("./{*}GammaZeroSFPoly"),
+            burst_info["radiometric"]["gamma_zero_poly_coefs"],
+        )
+
+        sicd_xml_obj.find("{*}RMA").addprevious(radiometric_node)
 
     return sicd_xml_obj
 
@@ -1203,6 +1446,19 @@ def _update_geo_data(xml_helper):
     icp_llh = sarkit.wgs84.cartesian_to_geodetic(icp_ecef)
     xml_helper.set("./{*}GeoData/{*}ImageCorners", icp_llh[:, :2])
     xml_helper.set("./{*}GeoData/{*}ValidData", icp_llh[:, :2])
+
+
+def _update_rniirs_info(xml_helper):
+    em = lxml.builder.ElementMaker(namespace=NSMAP["sicd"], nsmap={None: NSMAP["sicd"]})
+    info_density, predicted_rniirs = utils.get_rniirs_estimate(xml_helper)
+    collection_info_node = xml_helper.element_tree.find("./{*}CollectionInfo")
+
+    param_node = em.Parameter({"name": "INFORMATION_DENSITY"}, f"{info_density:0.2G}")
+    collection_info_node.append(param_node)
+    param_node = em.Parameter({"name": "PREDICTED_RNIIRS"}, f"{predicted_rniirs:0.1f}")
+    collection_info_node.append(param_node)
+
+    return
 
 
 def main(args=None):
@@ -1244,10 +1500,11 @@ def main(args=None):
         product_root_node = et.parse(entry["product"]).getroot()
         swath_info = _collect_swath_info(product_root_node)
         burst_info_list = _collect_burst_info(product_root_node, swath_info)
-        # Coming soon
-        # sicds = _calc_radiometric_info(entry["calibration"], base_sicd_info, burst_sicd_info)
-        # sicds = _calc_noise_level_info(entry["noise"], base_sicd_info, burst_sicd_info)
-        # sicds = _calc_rniirs_info(burst_sicd_info)
+        breakpoint()
+        if base_info["creation_date_time"].date() >= np.datetime64("2015-11-25"):
+            [burst_info.update({"radiometric": {}}) for burst_info in burst_info_list]
+            _calc_radiometric_info(entry["calibration"], swath_info, burst_info_list)
+            _calc_noise_level_info(entry["noise"], swath_info, burst_info_list)
 
         # Grab the data and write the files
         with tifffile.TiffFile(entry["data"]) as tif:
@@ -1258,12 +1515,16 @@ def main(args=None):
             sicd = _create_sicd_xml(
                 base_info, swath_info, burst_info, config.classification.upper()
             )
-            scp_coa = sksicd.compute_scp_coa(sicd.getroottree())
             # Add SCPCOA node
+            scp_coa = sksicd.compute_scp_coa(sicd.getroottree())
             sicd.find("./{*}ImageFormation").addnext(scp_coa)
             xml_helper = sksicd.XmlHelper(et.ElementTree(sicd))
             # Update ImageCorners and ValidData
             _update_geo_data(xml_helper)
+
+            # RNIIRS calcs require radiometric info
+            if "radiometric" in burst_info:
+                _update_rniirs_info(xml_helper)
 
             # Check for XML consistency
             sicd_con = sarkit.verification.SicdConsistency(sicd)
