@@ -1,4 +1,5 @@
 import subprocess
+import sys
 
 import pytest
 
@@ -7,7 +8,7 @@ import sarkit_convert.iceye
 
 def test_main_smoke():
     result = subprocess.run(
-        ["python", "-m", "sarkit_convert.iceye", "-h"],
+        [sys.executable, "-m", "sarkit_convert.iceye", "-h"],
         capture_output=True,
         text=True,
     )

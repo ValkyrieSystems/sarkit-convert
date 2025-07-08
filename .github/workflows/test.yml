@@ -1,0 +1,77 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Tests
+
+on:
+  push:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  lint_and_docs:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+      with:
+        lfs: false  # Save GitHub LFS bandwidth
+
+    - name: Setup PDM and Python
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: 3.13
+    - name: Install dependencies
+      run: |
+        pdm lock -G :all
+        pdm sync --no-default -G test
+    - name: Lint
+      run: pdm run nox -s lint
+
+
+  min_env_tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+      with:
+        lfs: false  # Save GitHub LFS bandwidth
+    - name: Setup PDM and Python
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: 3.11
+    - name: Install dependencies
+      run: |
+        pdm lock -G :all --strategy direct_minimal_versions
+        pdm sync --no-default -G test
+    - name: Run tests
+      run: pdm run nox -s test
+
+
+  current_env_tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+      with:
+        lfs: false  # Save GitHub LFS bandwidth
+    - name: Setup PDM and Python
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: 3.13
+    - name: Install dependencies
+      run: |
+        pdm lock -G :all
+        pdm sync --no-default -G test
+    - name: Run tests
+      run: pdm run nox -s test
