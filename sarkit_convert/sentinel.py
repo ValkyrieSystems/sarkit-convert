@@ -8,6 +8,7 @@ Convert a complex image(s) from the Sentinel SAFE to SICD(s).
 """
 
 import argparse
+import datetime
 import pathlib
 
 import dateutil.parser
@@ -138,6 +139,20 @@ def _collect_base_info(root_node):
         # TOPSAR - closest SICD analog is Dynamic Stripmap
         base_info["mode_type"] = "DYNAMIC STRIPMAP"
 
+    relative_orbit_num = int(
+        root_node.findtext(".//{*}relativeOrbitNumber[@type='start']")
+    )
+    base_info["parameters"] = {
+        "RELATIVE_ORBIT_NUM": relative_orbit_num,
+    }
+
+    base_info["start_time_anx"] = float(
+        root_node.findtext(".//{*}acquisitionPeriod//{*}startTimeANX")
+    )
+    base_info["acq_start_str"] = root_node.findtext(
+        ".//{*}acquisitionPeriod//{*}startTime"
+    )
+
     # Image Creation
     processing = root_node.find(
         "./metadataSection/metadataObject[@ID='processing']/metadataWrap/xmlData/{*}processing",
@@ -164,7 +179,7 @@ def _collect_base_info(root_node):
     return base_info
 
 
-def _collect_swath_info(product_root_node):
+def _collect_swath_info(product_root_node, base_info):
     swath_info = dict()
     burst_list = product_root_node.findall("./swathTiming/burstList/burst")
 
@@ -173,11 +188,24 @@ def _collect_swath_info(product_root_node):
     swath_info["mode_id"] = product_root_node.find("./adsHeader/mode").text
     t_slice = _get_slice(product_root_node)
     swath = _get_swath(product_root_node)
+
+    mission_data_take_id = product_root_node.find("./adsHeader/missionDataTakeId").text
     swath_info["parameters"] = {
         "SLICE": t_slice,
         "SWATH": swath,
         "ORBIT_SOURCE": "SLC_INTERNAL",
+        "MISSION_DATA_TAKE_ID": mission_data_take_id,
     }
+
+    slice_list = product_root_node.findall(
+        "./imageAnnotation/imageInformation/sliceList/slice"
+    )
+    swath_info["sensing_start"] = dateutil.parser.parse(
+        slice_list[int(t_slice) - 1].find("./sensingStartTime").text
+    )
+    swath_info["sensing_stop"] = dateutil.parser.parse(
+        slice_list[int(t_slice) - 1].find("./sensingStopTime").text
+    )
 
     # Radar Collection
     center_frequency = float(
@@ -226,8 +254,6 @@ def _collect_swath_info(product_root_node):
             "./generalAnnotation/downlinkInformationList/downlinkInformation/prf"
         ).text
     )
-    swath_info["t_start"] = 0
-    swath_info["ipp_start"] = 0
     swath_info["ipp_poly"] = (0, swath_info["prf"])
 
     # Image Formation
@@ -235,7 +261,6 @@ def _collect_swath_info(product_root_node):
         f"{swath_info['tx_polarization']}:{swath_info['rcv_polarization']}"
     )
     swath_info["image_form_algo"] = "RMA"
-    swath_info["t_start_proc"] = 0
     swath_info["tx_freq_proc"] = swath_info["tx_freq"]
     swath_info["image_beam_comp"] = "SV"
     swath_info["az_autofocus"] = "NO"
@@ -379,7 +404,7 @@ def _collect_swath_info(product_root_node):
     return swath_info
 
 
-def _collect_burst_info(product_root_node, swath_info):
+def _collect_burst_info(product_root_node, base_info, swath_info):
     burst_list = product_root_node.findall("./swathTiming/burstList/burst")
     # parse the geolocation information - for SCP calculation
     geo_grid_point_list = product_root_node.findall(
@@ -694,6 +719,28 @@ def _collect_burst_info(product_root_node, swath_info):
 
         return row_uvect_ecf, np.cross(uspz, row_uvect_ecf)
 
+    def _compute_burst_id(base_info, swath_info, burst_info):
+        """Add `burst_id` to each burst info in `swaths_info` based on DI-MPC-IPFDPM, Issue 2.5, Clause 9.25"""
+        t_orb = 12 * 24 * 3600 / 175
+        t_pre = {"IW": 2.299849, "EW": 2.299970}[swath_info["mode_id"]]
+        t_beam = {"IW": 2.758273, "EW": 3.038376}[swath_info["mode_id"]]
+
+        acq_start_utc = datetime.datetime.fromisoformat(
+            base_info["acq_start_str"]
+        ).replace(tzinfo=datetime.timezone.utc)
+        t_anx = acq_start_utc - datetime.timedelta(
+            milliseconds=base_info["start_time_anx"]
+        )
+
+        scp_tcoa = burst_info["time_coa_poly_coefs"][0, 0]
+        t_b = (
+            burst_info["collect_start"] + datetime.timedelta(seconds=scp_tcoa)
+        ).replace(tzinfo=datetime.timezone.utc)
+        delta_t_b = (t_b - t_anx).total_seconds() + (
+            base_info["parameters"]["RELATIVE_ORBIT_NUM"] - 1
+        ) * t_orb
+        return int(1 + (delta_t_b - t_pre) // t_beam)
+
     def _finalize_stripmap():
         burst_info = dict()
 
@@ -711,38 +758,34 @@ def _collect_burst_info(product_root_node, swath_info):
             (num_rows - 1, 0),
         ]
 
-        start = dateutil.parser.parse(
-            product_root_node.find(
-                "./generalAnnotation/downlinkInformationList/downlinkInformation/firstLineSensingTime"
-            ).text
-        )
-        stop = dateutil.parser.parse(
-            product_root_node.find(
-                "./generalAnnotation/downlinkInformationList/downlinkInformation/lastLineSensingTime"
-            ).text
-        )
-        slice = int(_get_slice(product_root_node))
+        t_slice = int(_get_slice(product_root_node))
         swath = _get_swath(product_root_node)
         burst_info["core_name"] = (
-            f"{start.strftime('%d%b%YT%H%M%S').upper()}_{product_root_node.find('./adsHeader/missionId').text}{product_root_node.find('./adsHeader/missionDataTakeId').text}_{slice:02d}_{swath}_01"
+            f"{swath_info['sensing_start'].strftime('%d%b%YT%H%M%S').upper()}_{product_root_node.find('./adsHeader/missionId').text}{product_root_node.find('./adsHeader/missionDataTakeId').text}_{t_slice:02d}_{swath}_01"
         )
 
-        burst_info["parameters"] = {"BURST": f"{1:d}"}
+        burst_info["parameters"] = {"BURST": f"{1:02d}"}
+
         prf = float(
             product_root_node.find(
                 "./generalAnnotation/downlinkInformationList/downlinkInformation/prf"
             ).text
         )
-        duration = (stop - start).total_seconds()
+        duration = (
+            swath_info["sensing_stop"] - swath_info["sensing_start"]
+        ).total_seconds()
 
-        burst_info["collect_start"] = start
+        burst_info["collect_start"] = swath_info["sensing_start"]
         burst_info["collect_duration"] = duration
+        burst_info["ipp_set_tstart"] = 0
         burst_info["ipp_set_tend"] = duration
+        burst_info["ipp_set_ippstart"] = 0
         burst_info["ipp_set_ippend"] = round(duration * prf) - 1
+        burst_info["tstart_proc"] = 0
         burst_info["tend_proc"] = duration
 
         burst_info["arp_poly_coefs"] = _compute_arp_poly_coefs(
-            product_root_node, start
+            product_root_node, swath_info["sensing_start"]
         ).T
 
         azimuth_time_first_line = dateutil.parser.parse(
@@ -750,9 +793,14 @@ def _collect_burst_info(product_root_node, swath_info):
                 "./imageAnnotation/imageInformation/productFirstLineUtcTime"
             ).text
         )
-        first_line_relative_start = (azimuth_time_first_line - start).total_seconds()
+        first_line_relative_start = (
+            azimuth_time_first_line - swath_info["sensing_start"]
+        ).total_seconds()
         _, _ = _calc_rma_and_grid_info(
-            swath_info, burst_info, first_line_relative_start, start
+            swath_info,
+            burst_info,
+            first_line_relative_start,
+            swath_info["sensing_start"],
         )
         burst_info["scp_ecf"], burst_info["scp_llh"] = _update_geo_data_info(
             swath_info, burst_info
@@ -767,6 +815,7 @@ def _collect_burst_info(product_root_node, swath_info):
         burst_info_list = []
 
         scps = _get_scps(swath_info, len(burst_list))
+        t_slice = int(_get_slice(product_root_node))
         for j, burst in enumerate(burst_list):
             # set preliminary geodata (required for projection)
             burst_info = dict()
@@ -791,42 +840,53 @@ def _collect_burst_info(product_root_node, swath_info):
                 (last_row, first_col),
             ]
 
-            # This is the first and last zero doppler times of the columns in the burst.
-            # Not really CollectStart and CollectDuration in SICD (first last pulse time)
-            start = dateutil.parser.parse(burst.find("./azimuthTime").text)
-            t_slice = int(_get_slice(product_root_node))
             swath = _get_swath(product_root_node)
+            # Use burst index for burst_id to maintain SARPy compatibility
             burst_info["core_name"] = (
-                f"{start.strftime('%d%b%YT%H%M%S').upper()}_{product_root_node.find('./adsHeader/missionId').text}{product_root_node.find('./adsHeader/missionDataTakeId').text}_{t_slice:02d}_{swath}_{j + 1:02d}"
+                f"{swath_info['sensing_start'].strftime('%d%b%YT%H%M%S').upper()}_{product_root_node.find('./adsHeader/missionId').text}{product_root_node.find('./adsHeader/missionDataTakeId').text}_{t_slice:02d}_{swath}_{j + 1:02d}"
             )
-
-            burst_info["parameters"] = {"BURST": f"{j + 1:d}"}
-            arp_poly_coefs = _compute_arp_poly_coefs(product_root_node, start)
+            arp_poly_coefs = _compute_arp_poly_coefs(
+                product_root_node, swath_info["sensing_start"]
+            )
             burst_info["arp_poly_coefs"] = arp_poly_coefs.T
-            early, late = _calc_rma_and_grid_info(swath_info, burst_info, 0, start)
-            new_start = start + np.timedelta64(np.int64(early * 1e6), "us")
-            duration = late - early
+
+            az_time = dateutil.parser.parse(burst.find("./azimuthTime").text)
+            first_line_relative_start = (
+                az_time - swath_info["sensing_start"]
+            ).total_seconds()
+            early, late = _calc_rma_and_grid_info(
+                swath_info,
+                burst_info,
+                first_line_relative_start,
+                swath_info["sensing_start"],
+            )
             prf = float(
                 product_root_node.find(
                     "./generalAnnotation/downlinkInformationList/downlinkInformation/prf"
                 ).text
             )
-            burst_info["collect_start"] = new_start
-            burst_info["collect_duration"] = duration
-            burst_info["ipp_set_tend"] = duration
-            burst_info["ipp_set_ippend"] = round(duration * prf) - 1
-            burst_info["tend_proc"] = duration
+            burst_info["collect_start"] = swath_info["sensing_start"]
+            burst_info["collect_duration"] = (
+                swath_info["sensing_stop"] - swath_info["sensing_start"]
+            ).total_seconds()
+            burst_info["ipp_set_tstart"] = early
+            burst_info["ipp_set_tend"] = late
+            burst_info["ipp_set_ippstart"] = round(early * prf)
+            burst_info["ipp_set_ippend"] = round(late * prf) - 1
+            burst_info["tstart_proc"] = early
+            burst_info["tend_proc"] = late
 
-            # adjust time offset
-            burst_info["time_coa_poly_coefs"][0, 0] -= early
-            burst_info["time_ca_poly_coefs"][0] -= early
+            if burst.find("./burstId") is not None:
+                burst_id = burst.findtext("./burstId")
+            else:
+                burst_id = _compute_burst_id(base_info, swath_info, burst_info)
 
-            arp_poly_coefs = np.array(
-                [
-                    _shift(arp_poly_coefs[i], t_0=-early)
-                    for i in range(len(arp_poly_coefs))
-                ]
-            )
+            # Keep BURST as the index to maintain SARPy compatibility
+            burst_info["parameters"] = {
+                "BURST": f"{j + 1:02d}",
+                "BURST_ID": burst_id,
+            }
+
             burst_info["arp_poly_coefs"] = arp_poly_coefs.T
 
             burst_info["scp_ecf"], burst_info["scp_llh"] = _update_geo_data_info(
@@ -1083,9 +1143,8 @@ def _calc_noise_level_info(noise_file_name, swath_info, burst_info_list):
 
 
 def _complete_filename(swath_info, burst_info, filename_template):
-    core_name = burst_info["core_name"]
-    burst = core_name[-2:]
     swath = swath_info["parameters"]["SWATH"]
+    burst = burst_info["parameters"]["BURST"]
     polarization = swath_info["tx_rcv_polarization_proc"].replace(":", "")
     formatted_name = filename_template.name.format(
         swath=swath, burst=burst, pol=polarization
@@ -1113,6 +1172,23 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         em.Parameter({"name": "SWATH"}, swath_info["parameters"]["SWATH"]),
         em.Parameter(
             {"name": "ORBIT_SOURCE"}, swath_info["parameters"]["ORBIT_SOURCE"]
+        ),
+        *(
+            [
+                em.Parameter(
+                    {"name": "BURST_ID"}, str(burst_info["parameters"]["BURST_ID"])
+                )
+            ]
+            if burst_info["parameters"].get("BURST_ID") is not None
+            else []
+        ),
+        em.Parameter(
+            {"name": "MISSION_DATA_TAKE_ID"},
+            swath_info["parameters"]["MISSION_DATA_TAKE_ID"],
+        ),
+        em.Parameter(
+            {"name": "RELATIVE_ORBIT_NUM"},
+            str(base_info["parameters"]["RELATIVE_ORBIT_NUM"]),
         ),
     )
 
@@ -1263,9 +1339,9 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
             {"size": "1"},
             em.Set(
                 {"index": "1"},
-                em.TStart(str(swath_info["t_start"])),
+                em.TStart(str(burst_info["ipp_set_tstart"])),
                 em.TEnd(str(burst_info["ipp_set_tend"])),
-                em.IPPStart(str(swath_info["ipp_start"])),
+                em.IPPStart(str(burst_info["ipp_set_ippstart"])),
                 em.IPPEnd(str(burst_info["ipp_set_ippend"])),
                 em.IPPPoly(),
             ),
@@ -1328,7 +1404,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
             em.ChanIndex(chan_indices),
         ),
         em.TxRcvPolarizationProc(swath_info["tx_rcv_polarization_proc"]),
-        em.TStartProc(str(swath_info["t_start_proc"])),
+        em.TStartProc(str(burst_info["tstart_proc"])),
         em.TEndProc(str(burst_info["tend_proc"])),
         em.TxFrequencyProc(
             em.MinProc(str(swath_info["tx_freq_proc"][0])),
@@ -1377,7 +1453,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         image_formation_node,
         rma_node,
     )
-    breakpoint()
+
     # Add Radiometric after Sentinel baseline processing calibration update on 25 Nov 2015.
     if "radiometric" in burst_info:
         # Radiometric
@@ -1498,9 +1574,8 @@ def main(args=None):
     used_filenames = set()
     for entry in files:
         product_root_node = et.parse(entry["product"]).getroot()
-        swath_info = _collect_swath_info(product_root_node)
-        burst_info_list = _collect_burst_info(product_root_node, swath_info)
-        breakpoint()
+        swath_info = _collect_swath_info(product_root_node, base_info)
+        burst_info_list = _collect_burst_info(product_root_node, base_info, swath_info)
         if base_info["creation_date_time"].date() >= np.datetime64("2015-11-25"):
             [burst_info.update({"radiometric": {}}) for burst_info in burst_info_list]
             _calc_radiometric_info(entry["calibration"], swath_info, burst_info_list)
