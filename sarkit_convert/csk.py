@@ -17,8 +17,12 @@ metadata that would predict the complex data characteristics
 
 import argparse
 import contextlib
+import datetime
 import pathlib
 
+import astropy.coordinates as apcoord
+import astropy.units as apu
+import astropy.utils
 import dateutil.parser
 import h5py
 import lxml.builder
@@ -30,8 +34,11 @@ import sarkit.verification
 import sarkit.wgs84
 import scipy.constants
 import scipy.optimize
+import scipy.spatial.transform
 
 from sarkit_convert import _utils as utils
+
+astropy.utils.iers.conf.autodownload = False
 
 NSMAP = {
     "sicd": "urn:SICD:1.4.0",
@@ -141,8 +148,10 @@ def hdf5_to_sicd(
         mission_id = h5_attrs["Mission ID"]
         if mission_id == "CSG":
             dataset_str = "IMG"
+            burst_str = "B0001"
         else:
             dataset_str = "SBI"
+            burst_str = "B001"
         sample_data_h5_path = f"{img_str}/{dataset_str}"
         sample_data_shape = h5file[sample_data_h5_path].shape
         sample_data_dtype = h5file[sample_data_h5_path].dtype
@@ -398,6 +407,157 @@ def hdf5_to_sicd(
     uspz = spz / npl.norm(spz)
     u_col = np.cross(uspz, u_row)
 
+    # Antenna
+    attitude_quaternion = np.roll(h5_attrs["Attitude Quaternions"], -1, axis=1)
+    attitude_times = h5_attrs["Attitude Times"]
+    attitude_utcs = [
+        ref_time + datetime.timedelta(seconds=attitude_time)
+        for attitude_time in attitude_times
+    ]
+
+    inertial_position = h5_attrs["Inertial Satellite Position"]
+    inertial_velocity = h5_attrs["Inertial Satellite Velocity"]
+    inertial_acceleration = h5_attrs["Inertial Satellite Acceleration"]
+    eci_apc_poly = utils.fit_state_vectors(
+        (0, (collection_stop_time - collection_start_time).total_seconds()),
+        h5_attrs["State Vectors Times"]
+        - (collection_start_time - ref_time).total_seconds(),
+        inertial_position,
+        inertial_velocity,
+        inertial_acceleration,
+        order=5,
+    )
+
+    def get_nadir_plane_at_time(time):
+        obstime = collection_start_time + datetime.timedelta(seconds=time)
+        eci_pos = npp.polyval(time, eci_apc_poly)
+        eci_vel = npp.polyval(time, npp.polyder(eci_apc_poly))
+
+        # Derived from https://adsabs.harvard.edu/full/2006ESASP.606E..35C, Section 3
+        z_sc = -eci_pos / np.linalg.norm(eci_pos)
+        y_sc_dir = np.cross(z_sc, eci_vel)
+        y_sc = y_sc_dir / np.linalg.norm(y_sc_dir)
+        x_sc = np.cross(y_sc, z_sc)
+        eci_2_ecf = np.array(
+            [
+                apcoord.GCRS(
+                    apcoord.CartesianRepresentation(1, 0, 0, unit=apu.m),
+                    obstime=obstime,
+                )
+                .transform_to(apcoord.ITRS(obstime=obstime))
+                .data.xyz.value,
+                apcoord.GCRS(
+                    apcoord.CartesianRepresentation(0, 1, 0, unit=apu.m),
+                    obstime=obstime,
+                )
+                .transform_to(apcoord.ITRS(obstime=obstime))
+                .data.xyz.value,
+                apcoord.GCRS(
+                    apcoord.CartesianRepresentation(0, 0, 1, unit=apu.m),
+                    obstime=obstime,
+                )
+                .transform_to(apcoord.ITRS(obstime=obstime))
+                .data.xyz.value,
+            ]
+        )
+        x_sc = x_sc @ eci_2_ecf
+        y_sc = y_sc @ eci_2_ecf
+        z_sc = z_sc @ eci_2_ecf
+        return np.array([x_sc, y_sc, z_sc])
+
+    rel_att_times = np.array(
+        [(att_utc - collection_start_time).total_seconds() for att_utc in attitude_utcs]
+    )
+    good_indices = np.where(
+        np.logical_and(
+            np.less(-60, rel_att_times),
+            np.less(rel_att_times, 60 + collection_duration),
+        )
+    )
+    good_times = rel_att_times[good_indices]
+    good_att_quat = attitude_quaternion[good_indices]
+    nadir_planes = [get_nadir_plane_at_time(time) for time in good_times]
+    body_frame = np.array(
+        [
+            scipy.spatial.transform.Rotation.from_quat(att_quat)
+            .inv()
+            .apply(nadir_plane.T)
+            .T
+            for att_quat, nadir_plane in zip(good_att_quat, nadir_planes)
+        ]
+    )
+
+    ux_rot = body_frame[:, 0, :]
+    uy_rot = body_frame[:, 1, :]
+
+    ant_x_dir_poly = utils.fit_state_vectors(
+        (0, (collection_stop_time - collection_start_time).total_seconds()),
+        good_times,
+        ux_rot,
+        None,
+        None,
+        order=4,
+    )
+    ant_y_dir_poly = utils.fit_state_vectors(
+        (0, (collection_stop_time - collection_start_time).total_seconds()),
+        good_times,
+        uy_rot,
+        None,
+        None,
+        order=4,
+    )
+
+    freq_zero = h5_attrs["Radar Frequency"]
+    antenna_beam_elevation = h5_attrs[img_str]["Antenna Beam Elevation"]
+    fit_order = 4
+
+    def fit_steering(code_change_lines, dcs):
+        if len(code_change_lines) > 1:
+            times = code_change_lines / prf
+            return npp.polyfit(times, dcs, fit_order)
+        else:
+            return np.array(dcs).reshape((1,))
+
+    if radar_mode_type != "STRIPMAP":
+        azimuth_ramp_code_change_lines = h5_attrs[img_str][burst_str][
+            "Azimuth Ramp Code Change Lines"
+        ]
+        azimuth_steering = h5_attrs[img_str][burst_str]["Azimuth Steering"]
+        elevation_ramp_code_change_lines = h5_attrs[img_str][burst_str][
+            "Elevation Ramp Code Change Lines"
+        ]
+        elevation_steering = h5_attrs[img_str][burst_str]["Elevation Steering"]
+        eb_dcx = np.sin(np.deg2rad(azimuth_steering))
+        eb_dcx_poly = fit_steering(azimuth_ramp_code_change_lines, eb_dcx)
+        eb_dcy = -np.sin(np.deg2rad(antenna_beam_elevation + elevation_steering))
+        eb_dcy_poly = fit_steering(elevation_ramp_code_change_lines, eb_dcy)
+    else:
+        eb_dcx_poly = [0.0]
+        eb_dcy_poly = [-np.sin(np.deg2rad(antenna_beam_elevation))]
+
+    antenna_az_gains = h5_attrs[img_str]["Azimuth Antenna Pattern Gains"]
+    antenna_az_origin = h5_attrs[img_str]["Azimuth Antenna Pattern Origin"]
+    antenna_az_spacing = h5_attrs[img_str]["Azimuth Antenna Pattern Resolution"]
+
+    antenna_rg_gains = h5_attrs[img_str]["Range Antenna Pattern Gains"]
+    antenna_rg_origin = h5_attrs[img_str]["Range Antenna Pattern Origin"]
+    antenna_rg_spacing = h5_attrs[img_str]["Range Antenna Pattern Resolution"]
+
+    def fit_gains(origin, spacing, gains):
+        fit_limit = -9
+        array_mask = gains > fit_limit
+        dcs = np.sin(np.deg2rad(origin + spacing * np.arange(len(gains))))
+        return npp.polyfit(dcs[array_mask], gains[array_mask], fit_order)
+
+    antenna_array_gain = np.zeros((fit_order + 1, fit_order + 1), dtype=float)
+    antenna_array_gain[0, :] = fit_gains(
+        antenna_rg_origin, antenna_rg_spacing, antenna_rg_gains
+    )
+    antenna_array_gain[:, 0] = fit_gains(
+        antenna_az_origin, antenna_az_spacing, antenna_az_gains
+    )
+    antenna_array_gain[0, 0] = 0.0
+
     # Build XML
     sicd = lxml.builder.ElementMaker(
         namespace=NSMAP["sicd"], nsmap={None: NSMAP["sicd"]}
@@ -600,6 +760,41 @@ def hdf5_to_sicd(
         sicd.RgAutofocus("NO"),
     )
 
+    antenna = sicd.Antenna(
+        sicd.TwoWay(
+            sicd.XAxisPoly(),
+            sicd.YAxisPoly(),
+            sicd.FreqZero(str(freq_zero)),
+            sicd.EB(
+                sicd.DCXPoly(),
+                sicd.DCYPoly(),
+            ),
+            sicd.Array(
+                sicd.GainPoly(),
+                sicd.PhasePoly(),
+            ),
+        ),
+    )
+    sksicd.XyzPolyType().set_elem(
+        antenna.find("./{*}TwoWay/{*}XAxisPoly"), ant_x_dir_poly
+    )
+    sksicd.XyzPolyType().set_elem(
+        antenna.find("./{*}TwoWay/{*}YAxisPoly"), ant_y_dir_poly
+    )
+    sksicd.PolyType().set_elem(
+        antenna.find("./{*}TwoWay/{*}EB/{*}DCXPoly"), eb_dcx_poly
+    )
+    sksicd.PolyType().set_elem(
+        antenna.find("./{*}TwoWay/{*}EB/{*}DCYPoly"), eb_dcy_poly
+    )
+    sksicd.Poly2dType().set_elem(
+        antenna.find("./{*}TwoWay/{*}Array/{*}GainPoly"), antenna_array_gain
+    )
+    sksicd.Poly2dType().set_elem(
+        antenna.find("./{*}TwoWay/{*}Array/{*}PhasePoly"),
+        np.zeros(dtype=float, shape=(1, 1)),
+    )
+
     rma = sicd.RMA(
         sicd.RMAlgoType("OMEGA_K"),
         sicd.ImageType("INCA"),
@@ -626,6 +821,7 @@ def hdf5_to_sicd(
         position,
         radar_collection,
         image_formation,
+        antenna,
         rma,
     )
 
@@ -668,7 +864,7 @@ def hdf5_to_sicd(
                 sksicd.Poly2dType().set_elem(
                     radiometric.find("./{*}RCSSFPoly"), rcssf_poly
                 )
-            sicd_xml_obj.find("./{*}RMA").addprevious(radiometric)
+            sicd_xml_obj.find("./{*}Antenna").addprevious(radiometric)
 
     # Add Geodata Corners
     sicd_xmltree = sicd_xml_obj.getroottree()

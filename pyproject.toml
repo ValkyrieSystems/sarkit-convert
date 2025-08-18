@@ -33,6 +33,7 @@ iceye = [
 ]
 
 cosmo = [
+    "astropy>=6.0.0",
     "h5py>=3.12.1",
     "python-dateutil>=2.9.0",
     "scipy>=1.15.1",
@@ -110,6 +111,7 @@ preview = true
 
 [[tool.mypy.overrides]]
 module = [
+    "astropy.*",
     "h5py.*",
     "lxml.*",
     "scipy.*",
