@@ -17,6 +17,7 @@ metadata that would predict the complex data characteristics
 
 import argparse
 import contextlib
+import datetime
 import pathlib
 
 import dateutil.parser
@@ -31,6 +32,7 @@ import sarkit.wgs84
 import scipy.constants
 import scipy.optimize
 
+from sarkit_convert import __version__
 from sarkit_convert import _utils as utils
 
 NSMAP = {
@@ -130,7 +132,6 @@ def hdf5_to_sicd(
     h5_filename,
     sicd_filename,
     classification,
-    ostaid,
     img_str,
     chan_index,
     tx_polarizations,
@@ -171,7 +172,6 @@ def hdf5_to_sicd(
 
     # Creation Info
     creation_time = dateutil.parser.parse(h5_attrs["Product Generation UTC"])
-    creation_site = h5_attrs["Processing Centre"]
     l0_ver = h5_attrs.get("L0 Software Version", "NONE")
     l1_ver = h5_attrs.get("L1A Software Version", "NONE")
     creation_application = f"L0: {l0_ver}, L1: {l1_ver}"
@@ -311,31 +311,34 @@ def hdf5_to_sicd(
     range_rate_per_hz = -scipy.constants.speed_of_light / (2 * center_frequency)
     range_rate = doppler_centroid * range_rate_per_hz
     range_rate_rate = doppler_rate * range_rate_per_hz
-    doppler_centroid_poly = utils.polyfit2d(
+    doppler_centroid_poly = utils.polyfit2d_tol(
         grid_coords[..., 0].flatten(),
         grid_coords[..., 1].flatten(),
         doppler_centroid.flatten(),
         4,
         4,
+        1e-2,
     )
-    doppler_rate_poly = utils.polyfit2d(
+    doppler_rate_poly = utils.polyfit2d_tol(
         grid_coords[..., 0].flatten(),
         grid_coords[..., 1].flatten(),
         doppler_rate.flatten(),
         4,
         4,
+        1e-3,
     )
     time_ca_samps = time_coords[..., 1] - start_minus_ref
     time_ca_poly = npp.polyfit(
         grid_coords[..., 1].flatten(), time_ca_samps.flatten(), 1
     )
     time_coa_samps = time_ca_samps + range_rate / range_rate_rate
-    time_coa_poly = utils.polyfit2d(
+    time_coa_poly = utils.polyfit2d_tol(
         grid_coords[..., 0].flatten(),
         grid_coords[..., 1].flatten(),
         time_coa_samps.flatten(),
         4,
         4,
+        1e-3,
     )
 
     range_ca = time_coords[..., 0] * scipy.constants.speed_of_light / 2
@@ -344,12 +347,13 @@ def hdf5_to_sicd(
         axis=0,
     )
     drsf = range_rate_rate * range_ca / speed_ca**2
-    drsf_poly = utils.polyfit2d(
+    drsf_poly = utils.polyfit2d_tol(
         grid_coords[..., 0].flatten(),
         grid_coords[..., 1].flatten(),
         drsf.flatten(),
         4,
         4,
+        1e-6,
     )
 
     llh_ddm = h5_attrs["Scene Centre Geodetic Coordinates"]
@@ -412,7 +416,6 @@ def hdf5_to_sicd(
     image_creation = sicd.ImageCreation(
         sicd.Application(creation_application),
         sicd.DateTime(creation_time.isoformat() + "Z"),
-        sicd.Site(creation_site),
     )
     image_data = sicd.ImageData(
         sicd.PixelType(pixel_type),
@@ -585,6 +588,11 @@ def hdf5_to_sicd(
             )
         rcv_channels.addprevious(tx_sequence)
 
+    now = (
+        datetime.datetime.now(datetime.timezone.utc)
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
     image_formation = sicd.ImageFormation(
         sicd.RcvChanProc(sicd.NumChanProc("1"), sicd.ChanIndex(str(chan_index))),
         sicd.TxRcvPolarizationProc(tx_rcv_polarization),
@@ -598,6 +606,10 @@ def hdf5_to_sicd(
         sicd.ImageBeamComp("SV"),
         sicd.AzAutofocus("NO"),
         sicd.RgAutofocus("NO"),
+        sicd.Processing(
+            sicd.Type(f"sarkit-convert {__version__} @ {now}"),
+            sicd.Applied("true"),
+        ),
     )
 
     rma = sicd.RMA(
@@ -708,7 +720,7 @@ def hdf5_to_sicd(
     metadata = sksicd.NitfMetadata(
         xmltree=sicd_xmltree,
         file_header_part={
-            "ostaid": ostaid,
+            "ostaid": h5_attrs["Processing Centre"],
             "ftitle": core_name,
             "security": {
                 "clas": classification[0].upper(),
@@ -755,11 +767,6 @@ def main(args=None):
         "output_sicd_file",
         type=pathlib.Path,
         help='path of the output SICD file. The string "{pol}" will be replaced with polarization for multiple images',
-    )
-    parser.add_argument(
-        "--ostaid",
-        help="content of the originating station ID (OSTAID) field of the NITF header",
-        default="Unknown",
     )
     config = parser.parse_args(args)
 
@@ -810,7 +817,6 @@ def main(args=None):
             h5_filename=config.input_h5_file,
             sicd_filename=img_info["filename"],
             classification=config.classification,
-            ostaid=config.ostaid,
             img_str=img_str,
             chan_index=img_info["chan_index"],
             tx_polarizations=tx_polarizations,

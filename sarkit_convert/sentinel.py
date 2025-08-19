@@ -163,9 +163,6 @@ def _collect_base_info(root_node):
         f"{software.attrib['name']} {software.attrib['version']}"
     )
     base_info["creation_date_time"] = dateutil.parser.parse(processing.attrib["stop"])
-    base_info["creation_site"] = (
-        f"{facility.attrib['name']}, {facility.attrib['site']}, {facility.attrib['country']}"
-    )
 
     # Radar Collection
     polarizations = root_node.findall(
@@ -574,7 +571,7 @@ def _collect_burst_info(product_root_node, base_info, swath_info):
         )
 
         # common use for the fitting efforts
-        poly_order = 2
+        poly_order = 4
         grid_samples = poly_order + 4
         num_rows = swath_info["num_rows"]
         num_cols = swath_info["num_cols"]
@@ -609,12 +606,13 @@ def _collect_burst_info(product_root_node, base_info, swath_info):
         demod_phase = eta_arg * f_eta_c[:, np.newaxis]
         total_phase = deramp_phase + demod_phase
 
-        phase = utils.polyfit2d(
+        phase = utils.polyfit2d_tol(
             coords_rg_2d.flatten(),
             coords_az_2d.flatten(),
             total_phase.flatten(),
             poly_order,
-            poly_order,
+            poly_order + 1,
+            1e-2,
         )
 
         # DeltaKCOAPoly is derivative of phase in azimuth/Col direction
@@ -633,12 +631,13 @@ def _collect_burst_info(product_root_node, base_info, swath_info):
         )
         time_coa_sampled = time_ca_sampled + dop_centroid_sampled / doppler_rate_sampled
 
-        burst_info["time_coa_poly_coefs"] = utils.polyfit2d(
+        burst_info["time_coa_poly_coefs"] = utils.polyfit2d_tol(
             coords_rg_2d.flatten(),
             coords_az_2d.flatten(),
             time_coa_sampled.flatten(),
             poly_order,
             poly_order,
+            1e-3,
         )
 
         full_img_verticies = np.array(
@@ -952,6 +951,7 @@ def _calc_radiometric_info(cal_file_name, swath_info, burst_info_list):
             # this burst contained no useful calibration data
             return
 
+        poly_order = 4
         first_row = swath_info["first_row"]
         first_col = swath_info["first_col"]
         scp_row = swath_info["scp_pixel"][0]
@@ -965,26 +965,29 @@ def _calc_radiometric_info(cal_file_name, swath_info, burst_info_list):
         if valid_count > 1:
             coords_az = coords_az.reshape((valid_count, -1))
 
-        burst_info["radiometric"]["sigma_zero_poly_coefs"] = utils.polyfit2d(
+        burst_info["radiometric"]["sigma_zero_poly_coefs"] = utils.polyfit2d_tol(
             coords_rg.flatten(),
             coords_az.flatten(),
             sigma[valid_lines, :].flatten(),
-            2,
-            2,
+            poly_order,
+            poly_order,
+            1e-2,
         )
-        burst_info["radiometric"]["beta_zero_poly_coefs"] = utils.polyfit2d(
+        burst_info["radiometric"]["beta_zero_poly_coefs"] = utils.polyfit2d_tol(
             coords_rg.flatten(),
             coords_az.flatten(),
             beta[valid_lines, :].flatten(),
-            2,
-            2,
+            poly_order,
+            poly_order,
+            1e-2,
         )
-        burst_info["radiometric"]["gamma_zero_poly_coefs"] = utils.polyfit2d(
+        burst_info["radiometric"]["gamma_zero_poly_coefs"] = utils.polyfit2d_tol(
             coords_rg.flatten(),
             coords_az.flatten(),
             gamma[valid_lines, :].flatten(),
-            2,
-            2,
+            poly_order,
+            poly_order,
+            1e-2,
         )
 
         range_weight_f = azimuth_weight_f = 1.0
@@ -1077,7 +1080,7 @@ def _calc_noise_level_info(noise_file_name, swath_info, burst_info_list):
     else:
         azimuth_line, azimuth_noise = None, None
 
-    rg_poly_order = min(5, range_pixel[0].size - 1)
+    rg_poly_order = min(4, range_pixel[0].size - 1)
     first_row = swath_info["first_row"]
     first_col = swath_info["first_col"]
     scp_row = swath_info["scp_pixel"][0]
@@ -1093,12 +1096,13 @@ def _calc_noise_level_info(noise_file_name, swath_info, burst_info_list):
 
             coords_az_2d, coords_rg_2d = np.meshgrid(coords_az, coords_rg)
 
-            noise_poly = utils.polyfit2d(
+            noise_poly = utils.polyfit2d_tol(
                 coords_rg_2d.flatten(),
                 coords_az_2d.flatten(),
                 np.array(range_noise).flatten(),
                 rg_poly_order,
                 az_poly_order,
+                1e-2,
             )
         else:
             # TOPSAR has single LUT per burst
@@ -1196,8 +1200,6 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
     image_creation_node = em.ImageCreation(
         em.Application(base_info["creation_application"]),
         em.DateTime(base_info["creation_date_time"].strftime("%Y-%m-%dT%H:%M:%SZ")),
-        em.Site(base_info["creation_site"]),
-        em.Profile(f"sarkit-convert {__version__}"),
     )
 
     # Image Data
@@ -1397,6 +1399,11 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
             chan_indices = str(i)
 
     # Image Formation
+    now = (
+        datetime.datetime.now(datetime.timezone.utc)
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
     image_formation_node = em.ImageFormation(
         em.RcvChanProc(
             em.NumChanProc("1"),
@@ -1415,6 +1422,10 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         em.ImageBeamComp(swath_info["image_beam_comp"]),
         em.AzAutofocus(swath_info["az_autofocus"]),
         em.RgAutofocus(swath_info["rg_autofocus"]),
+        em.Processing(
+            em.Type(f"sarkit-convert {__version__} @ {now}"),
+            em.Applied("true"),
+        ),
     )
 
     # RMA
@@ -1557,12 +1568,6 @@ def main(args=None):
         type=pathlib.Path,
         help="path of the output SICD file. The strings '{swath}', '{burst}', '{pol}' will be replaced as appropriate for multiple images",
     )
-    parser.add_argument(
-        "--ostaid",
-        type=str,
-        help="content of the originating station ID (OSTAID) field of the NITF header",
-        default="Unknown",
-    )
     config = parser.parse_args(args)
 
     manifest_filename = config.safe_product_folder / "manifest.safe"
@@ -1619,7 +1624,7 @@ def main(args=None):
             metadata = sksicd.NitfMetadata(
                 xmltree=sicd.getroottree(),
                 file_header_part={
-                    "ostaid": config.ostaid,
+                    "ostaid": "ESA",
                     "ftitle": xml_helper.load("{*}CollectionInfo/{*}CoreName"),
                     "security": {
                         "clas": config.classification[0].upper(),

@@ -11,6 +11,7 @@ Note: In the development of this converter "Iceye Product Metadata" description 
 
 import argparse
 import copy
+import datetime
 import pathlib
 
 import dateutil.parser
@@ -24,6 +25,7 @@ import sarkit.wgs84
 from sarkit import _constants
 from sarkit.verification import SicdConsistency
 
+from sarkit_convert import __version__
 from sarkit_convert import _utils as utils
 
 NSMAP = {
@@ -226,7 +228,7 @@ def _calc_deltaks(x_coords, y_coords, deltak_coa_poly, imp_resp_bw, spacing):
     return min_deltak, max_deltak
 
 
-def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid="Unknown"):
+def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
     """Converts Iceye native SLC h5 files to NGA standard SICD files.
 
     Parameters
@@ -237,7 +239,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid="Unknown"):
         path of the output SICD file.
     classification: str
         content of the /SICD/CollectionInfo/Classification node in the SICD XML.
-    ostaid: str, optional
+    ostaid: str
         content of the originating station ID (OSTAID) field of the NITF header.
 
     """
@@ -411,25 +413,27 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid="Unknown"):
                 / 2,
             )
 
-            x_order = min(3, range_scp_m.shape[0] - 1)
-            y_order = min(3, range_scp_m.shape[1] - 1)
+            x_order = min(4, range_scp_m.shape[0] - 1)
+            y_order = min(4, range_scp_m.shape[1] - 1)
 
             # fit the doppler centroid sample array
-            dop_centroid_poly_coefs = utils.polyfit2d(
+            dop_centroid_poly_coefs = utils.polyfit2d_tol(
                 range_scp_m.flatten(),
                 azimuth_scp_m.flatten(),
                 dc_sample_array.flatten(),
                 x_order,
                 y_order,
+                1e-2,
             )
             doppler_rate_sampled = npp.polyval(azimuth_scp_m, drca_poly_coefs)
             time_coa = dc_zd_times + dc_sample_array / doppler_rate_sampled
-            time_coa_poly_coefs = utils.polyfit2d(
+            time_coa_poly_coefs = utils.polyfit2d_tol(
                 range_scp_m.flatten(),
                 azimuth_scp_m.flatten(),
                 time_coa.flatten(),
                 x_order,
                 y_order,
+                1e-3,
             )
 
         return dop_centroid_poly_coefs, time_coa_poly_coefs
@@ -566,7 +570,6 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid="Unknown"):
     image_creation = sicd.ImageCreation(
         sicd.Application(creation_application),
         sicd.DateTime(creation_date_time.isoformat() + "Z"),
-        sicd.Site(ostaid),
     )
     image_data = sicd.ImageData(
         sicd.PixelType(pixel_type),
@@ -689,6 +692,11 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid="Unknown"):
         ),
     )
 
+    now = (
+        datetime.datetime.now(datetime.timezone.utc)
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
     image_formation = sicd.ImageFormation(
         sicd.RcvChanProc(sicd.NumChanProc("1"), sicd.ChanIndex("1")),
         sicd.TxRcvPolarizationProc(tx_rcv_polarization_proc),
@@ -702,6 +710,10 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid="Unknown"):
         sicd.ImageBeamComp(image_beam_comp),
         sicd.AzAutofocus(az_autofocus),
         sicd.RgAutofocus(rg_autofocus),
+        sicd.Processing(
+            sicd.Type(f"sarkit-convert {__version__} @ {now}"),
+            sicd.Applied("true"),
+        ),
     )
 
     radiometric = sicd.Radiometric(
@@ -856,20 +868,19 @@ def main(args=None):
         help="path of the input HDF5 file",
     )
     parser.add_argument(
-        "classification",
-        type=str,
-        help="content of the /SICD/CollectionInfo/Classification node in the SICD XML",
-    )
-    parser.add_argument(
         "output_sicd_file",
         type=pathlib.Path,
         help="path of the output SICD file",
     )
     parser.add_argument(
-        "--ostaid",
+        "classification",
+        type=str,
+        help="content of the /SICD/CollectionInfo/Classification node in the SICD XML",
+    )
+    parser.add_argument(
+        "ostaid",
         type=str,
         help="content of the originating station ID (OSTAID) field of the NITF header",
-        default="Unknown",
     )
     config = parser.parse_args(args)
 
