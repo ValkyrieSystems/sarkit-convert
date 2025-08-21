@@ -21,4 +21,6 @@ def test_main_errors():
         sarkit_convert.iceye.main()
 
     with pytest.raises(FileNotFoundError, match="Unable to synchronously open file"):
-        sarkit_convert.iceye.main(["/fake/path", "U", "/another/fake/path"])
+        sarkit_convert.iceye.main(
+            ["/fake/path", "U", "/another/fake/path", "fake_ostaid"]
+        )
