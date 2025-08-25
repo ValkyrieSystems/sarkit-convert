@@ -15,6 +15,7 @@ metadata that would predict the complex data characteristics
 """
 
 import argparse
+import datetime
 import pathlib
 
 import dateutil.parser
@@ -28,6 +29,7 @@ import sarkit.wgs84
 import scipy.constants
 from lxml import etree
 
+from sarkit_convert import __version__
 from sarkit_convert import _utils as utils
 
 NSMAP = {
@@ -154,7 +156,6 @@ def cosar_to_sicd(
     cosar_file,
     sicd_file,
     classification,
-    ostaid,
     chan_index,
     tx_polarizations,
     tx_rcv_pols,
@@ -196,7 +197,7 @@ def cosar_to_sicd(
     application = generation_system.text
     version = generation_system.attrib["version"]
     creation_application = f"{application} version {version}"
-    creation_site = tsx_xml.findtext(
+    originator_facility = tsx_xml.findtext(
         "./productInfo/generationInfo/level1ProcessingFacility"
     )
 
@@ -615,7 +616,6 @@ def cosar_to_sicd(
     image_creation = sicd.ImageCreation(
         sicd.Application(creation_application),
         sicd.DateTime(_naive_to_sicd_str(creation_time)),
-        sicd.Site(creation_site),
     )
     image_data = sicd.ImageData(
         sicd.PixelType(COSAR_PIXEL_TYPE),
@@ -779,6 +779,11 @@ def cosar_to_sicd(
             )
         rcv_channels.addprevious(tx_sequence)
 
+    now = (
+        datetime.datetime.now(datetime.timezone.utc)
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
     image_formation = sicd.ImageFormation(
         sicd.RcvChanProc(sicd.NumChanProc("1"), sicd.ChanIndex(str(chan_index))),
         sicd.TxRcvPolarizationProc(tx_rcv_polarization),
@@ -792,6 +797,10 @@ def cosar_to_sicd(
         sicd.ImageBeamComp("SV"),
         sicd.AzAutofocus("NO"),
         sicd.RgAutofocus("NO"),
+        sicd.Processing(
+            sicd.Type(f"sarkit-convert {__version__} @ {now}"),
+            sicd.Applied("true"),
+        ),
     )
 
     antenna = sicd.Antenna(
@@ -949,7 +958,7 @@ def cosar_to_sicd(
     metadata = sksicd.NitfMetadata(
         xmltree=sicd_xmltree,
         file_header_part={
-            "ostaid": ostaid,
+            "ostaid": originator_facility,
             "ftitle": core_name,
             "security": {
                 "clas": classification[0].upper(),
@@ -992,11 +1001,6 @@ def main(args=None):
         "output_sicd_file",
         type=pathlib.Path,
         help='path of the output SICD file. The string "{pol}" will be replaced with polarization for multiple images',
-    )
-    parser.add_argument(
-        "--ostaid",
-        help="content of the originating station ID (OSTAID) field of the NITF header",
-        default="Unknown",
     )
     config = parser.parse_args(args)
 
@@ -1041,7 +1045,6 @@ def main(args=None):
             cosar_file=img_info["cosar_filename"],
             sicd_file=img_info["sicd_filename"],
             classification=config.classification,
-            ostaid=config.ostaid,
             chan_index=img_info["chan_index"],
             tx_polarizations=tx_polarizations,
             tx_rcv_pols=tx_rcv_pols,
