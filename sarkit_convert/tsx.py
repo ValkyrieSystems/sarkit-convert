@@ -492,6 +492,116 @@ def cosar_to_sicd(
     uspz = spz / npl.norm(spz)
     u_col = np.cross(uspz, u_row)
 
+    # Antenna
+    attitude_elem = tsx_xml.find("./platform/attitude")
+    attitude_utcs = []
+    attitude_quaternions = []
+    for attitude_data in attitude_elem.findall("./attitudeData"):
+        attitude_utcs.append(_parse_to_naive(attitude_data.findtext("./timeUTC")))
+        quat = [
+            float(attitude_data.findtext("./q0")),
+            float(attitude_data.findtext("./q1")),
+            float(attitude_data.findtext("./q2")),
+            float(attitude_data.findtext("./q3")),
+        ]
+        attitude_quaternions.append(quat)
+    attitude_quaternions = np.array(attitude_quaternions)
+
+    def get_mech_frame_from_quat(att_quat):
+        scipy_quat = np.roll(att_quat, -1)
+        return scipy.spatial.transform.Rotation.from_quat(scipy_quat).inv().as_matrix()
+
+    rel_att_times = np.array(
+        [(att_utc - collection_start_time).total_seconds() for att_utc in attitude_utcs]
+    )
+    good_indices = np.where(
+        np.logical_and(
+            np.less(-60, rel_att_times),
+            np.less(rel_att_times, 60 + collection_duration),
+        )
+    )
+    good_times = rel_att_times[good_indices]
+    good_att_quat = attitude_quaternions[good_indices]
+    mech_frame = np.array(
+        [get_mech_frame_from_quat(att_quat) for att_quat in good_att_quat]
+    )
+
+    ux_rot = mech_frame[:, 0, :]
+    uy_rot = mech_frame[:, 1, :]
+
+    ant_x_dir_poly = utils.fit_state_vectors(
+        (0, (collection_stop_time - collection_start_time).total_seconds()),
+        good_times,
+        ux_rot,
+        None,
+        None,
+        order=4,
+    )
+    ant_y_dir_poly = utils.fit_state_vectors(
+        (0, (collection_stop_time - collection_start_time).total_seconds()),
+        good_times,
+        uy_rot,
+        None,
+        None,
+        order=4,
+    )
+
+    freq_zero = center_frequency
+    antenna_pattern_elem = tsx_xml.xpath(
+        f'./calibration/calibrationData/antennaPattern[polLayer[text()="{pol_layer}"]]'
+    )[0]
+    antenna_beam_elevation = np.arctan2(
+        float(antenna_pattern_elem.findtext("./beamPointingVector/y")),
+        float(antenna_pattern_elem.findtext("./beamPointingVector/z")),
+    )
+    spotlight_elem = tsx_xml.find(
+        "./productInfo/acquisitionInfo/imagingModeSpecificInfo/spotLight"
+    )
+    if spotlight_elem:
+        azimuth_steering = np.array(
+            [
+                float(spotlight_elem.findtext("./azimuthSteeringAngleFirst")),
+                float(spotlight_elem.findtext("./azimuthSteeringAngleLast")),
+            ]
+        )
+        eb_dcx_poly = npp.polyfit(
+            [0, collection_duration], np.sin(np.deg2rad(azimuth_steering)), 1
+        )
+    else:
+        eb_dcx_poly = [0.0]
+    eb_dcy_poly = [-look * np.sin(antenna_beam_elevation)]
+
+    def get_angles_gains(pattern_elem):
+        antenna_angles = []
+        antenna_gains = []
+        for gain_ext in pattern_elem.findall("./gainExt"):
+            antenna_angles.append(float(gain_ext.attrib["angle"]))
+            antenna_gains.append(float(gain_ext.text))
+        return np.array(antenna_angles), np.array(antenna_gains)
+
+    antenna_rg_angles, antenna_rg_gains = get_angles_gains(
+        antenna_pattern_elem.find("./elevationPattern")
+    )
+    antenna_az_angles, antenna_az_gains = get_angles_gains(
+        antenna_pattern_elem.find("./azimuthPattern")
+    )
+
+    fit_order = 4
+
+    def fit_gains(angles, gains):
+        fit_limit = -9
+        array_mask = gains > fit_limit
+        dcs = np.sin(np.deg2rad(angles))
+        return npp.polyfit(dcs[array_mask], gains[array_mask], fit_order)
+
+    antenna_array_gain = np.zeros((fit_order + 1, fit_order + 1), dtype=float)
+    antenna_array_gain[0, :] = fit_gains(
+        antenna_rg_angles + look * np.rad2deg(antenna_beam_elevation),
+        antenna_rg_gains,
+    )
+    antenna_array_gain[:, 0] = fit_gains(antenna_az_angles, antenna_az_gains)
+    antenna_array_gain[0, 0] = 0.0
+
     # Build XML
     sicd = lxml.builder.ElementMaker(
         namespace=NSMAP["sicd"], nsmap={None: NSMAP["sicd"]}
@@ -693,6 +803,41 @@ def cosar_to_sicd(
         ),
     )
 
+    antenna = sicd.Antenna(
+        sicd.TwoWay(
+            sicd.XAxisPoly(),
+            sicd.YAxisPoly(),
+            sicd.FreqZero(str(freq_zero)),
+            sicd.EB(
+                sicd.DCXPoly(),
+                sicd.DCYPoly(),
+            ),
+            sicd.Array(
+                sicd.GainPoly(),
+                sicd.PhasePoly(),
+            ),
+        ),
+    )
+    sksicd.XyzPolyType().set_elem(
+        antenna.find("./{*}TwoWay/{*}XAxisPoly"), ant_x_dir_poly
+    )
+    sksicd.XyzPolyType().set_elem(
+        antenna.find("./{*}TwoWay/{*}YAxisPoly"), ant_y_dir_poly
+    )
+    sksicd.PolyType().set_elem(
+        antenna.find("./{*}TwoWay/{*}EB/{*}DCXPoly"), eb_dcx_poly
+    )
+    sksicd.PolyType().set_elem(
+        antenna.find("./{*}TwoWay/{*}EB/{*}DCYPoly"), eb_dcy_poly
+    )
+    sksicd.Poly2dType().set_elem(
+        antenna.find("./{*}TwoWay/{*}Array/{*}GainPoly"), antenna_array_gain
+    )
+    sksicd.Poly2dType().set_elem(
+        antenna.find("./{*}TwoWay/{*}Array/{*}PhasePoly"),
+        np.zeros(dtype=float, shape=(1, 1)),
+    )
+
     rma = sicd.RMA(
         sicd.RMAlgoType("OMEGA_K"),
         sicd.ImageType("INCA"),
@@ -719,6 +864,7 @@ def cosar_to_sicd(
         position,
         radar_collection,
         image_formation,
+        antenna,
         rma,
     )
 
@@ -768,7 +914,7 @@ def cosar_to_sicd(
         radiometric.find("./{*}SigmaZeroSFPoly").addprevious(sicd.RCSSFPoly())
         sksicd.Poly2dType().set_elem(radiometric.find("./{*}RCSSFPoly"), rcssf_poly)
 
-    sicd_xml_obj.find("./{*}RMA").addprevious(radiometric)
+    sicd_xml_obj.find("./{*}Antenna").addprevious(radiometric)
 
     # Add Geodata Corners
     sicd_xmltree = sicd_xml_obj.getroottree()
