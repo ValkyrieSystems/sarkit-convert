@@ -55,6 +55,19 @@ def test_polyfit2d_invalid_inputs(x, y, z, error_msg):
         utils.polyfit2d(x, y, z, 1, 1)
 
 
+def test_polyshift():
+    rng = np.random.default_rng(seed=8675309)
+    for order in range(10):
+        poly_coefs = rng.uniform(size=(order + 1))
+        shift = 10 * rng.uniform()
+        new_poly = utils.polyshift(poly_coefs, shift)
+        assert npp.polyval(0, new_poly) == pytest.approx(npp.polyval(shift, poly_coefs))
+        assert npp.polyval(-shift, new_poly) == pytest.approx(
+            npp.polyval(0, poly_coefs)
+        )
+        assert poly_coefs.shape == new_poly.shape
+
+
 @pytest.fixture
 def data():
     order = 5
