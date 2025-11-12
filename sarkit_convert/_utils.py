@@ -131,13 +131,13 @@ def polyshift(poly, new_origin):
     ----
     poly: array-like
         1d polynomial coefficients, with constant term first
-    shift: float
-        location in `poly`'s domain to place new polynomials origin
+    new_origin: float
+        location in `poly`'s domain to place new polynomial's origin
 
     Returns
     -------
     new_poly
-        polynomial of same order as `poly` for which new_poly(0) == poly(shift)
+        polynomial of same order as `poly` for which new_poly(0) == poly(new_origin)
     """
 
     working_coeffs = np.array(list(reversed(poly)))
