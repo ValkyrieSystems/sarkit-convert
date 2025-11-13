@@ -1,0 +1,1174 @@
+<SICD xmlns="urn:SICD:1.4.0">
+  <CollectionInfo>
+    <CollectorName>S1A</CollectorName>
+    <CoreName>S1A_IW_RAW__0SDV_20250619T232444_20250619T232516_059722_076A87_E109</CoreName>
+    <CollectType>MONOSTATIC</CollectType>
+    <RadarMode>
+      <ModeType>STRIPMAP</ModeType>
+    </RadarMode>
+    <Classification>UNCLASSIFIED</Classification>
+    <Parameter name="aux_cal_product_name">S1A_AUX_CAL_V20190228T092500_G20240327T102320</Parameter>
+    <Parameter name="aux_ins_product_name">S1A_AUX_INS_V20190228T092500_G20211103T111906</Parameter>
+    <Parameter name="aux_pp1_product_name">S1A_AUX_PP1_V20190228T092500_G20250515T131849</Parameter>
+    <Parameter name="instrument_config_id">7</Parameter>
+    <Parameter name="AUX_POEORB">S1A_OPER_AUX_POEORB_OPOD_20250710T070636_V20250619T225942_20250621T005942</Parameter>
+    <Parameter name="orbit_source">AUX_POEORB</Parameter>
+  </CollectionInfo>
+  <ImageCreation>
+    <Application>Valkyrie Systems Sage | sar_common_kit 1.16.2.0</Application>
+    <DateTime>2025-07-23T21:48:18.879018Z</DateTime>
+  </ImageCreation>
+  <ImageData>
+    <PixelType>RE32F_IM32F</PixelType>
+    <NumRows>23148</NumRows>
+    <NumCols>1460</NumCols>
+    <FirstRow>0</FirstRow>
+    <FirstCol>0</FirstCol>
+    <FullImage>
+      <NumRows>23148</NumRows>
+      <NumCols>1460</NumCols>
+    </FullImage>
+    <SCPPixel>
+      <Row>11190</Row>
+      <Col>735</Col>
+    </SCPPixel>
+    <ValidData size="32">
+      <Vertex index="1">
+        <Row>252</Row>
+        <Col>729</Col>
+      </Vertex>
+      <Vertex index="2">
+        <Row>254</Row>
+        <Col>848</Col>
+      </Vertex>
+      <Vertex index="3">
+        <Row>260</Row>
+        <Col>967</Col>
+      </Vertex>
+      <Vertex index="4">
+        <Row>269</Row>
+        <Col>1086</Col>
+      </Vertex>
+      <Vertex index="5">
+        <Row>283</Row>
+        <Col>1205</Col>
+      </Vertex>
+      <Vertex index="6">
+        <Row>2944</Row>
+        <Col>1203</Col>
+      </Vertex>
+      <Vertex index="7">
+        <Row>5655</Row>
+        <Col>1201</Col>
+      </Vertex>
+      <Vertex index="8">
+        <Row>8414</Row>
+        <Col>1199</Col>
+      </Vertex>
+      <Vertex index="9">
+        <Row>11220</Row>
+        <Col>1197</Col>
+      </Vertex>
+      <Vertex index="10">
+        <Row>14073</Row>
+        <Col>1195</Col>
+      </Vertex>
+      <Vertex index="11">
+        <Row>16970</Row>
+        <Col>1193</Col>
+      </Vertex>
+      <Vertex index="12">
+        <Row>19912</Row>
+        <Col>1191</Col>
+      </Vertex>
+      <Vertex index="13">
+        <Row>22898</Row>
+        <Col>1189</Col>
+      </Vertex>
+      <Vertex index="14">
+        <Row>22885</Row>
+        <Col>1077</Col>
+      </Vertex>
+      <Vertex index="15">
+        <Row>22876</Row>
+        <Col>965</Col>
+      </Vertex>
+      <Vertex index="16">
+        <Row>22870</Row>
+        <Col>852</Col>
+      </Vertex>
+      <Vertex index="17">
+        <Row>22868</Row>
+        <Col>740</Col>
+      </Vertex>
+      <Vertex index="18">
+        <Row>22870</Row>
+        <Col>628</Col>
+      </Vertex>
+      <Vertex index="19">
+        <Row>22876</Row>
+        <Col>516</Col>
+      </Vertex>
+      <Vertex index="20">
+        <Row>22885</Row>
+        <Col>404</Col>
+      </Vertex>
+      <Vertex index="21">
+        <Row>22897</Row>
+        <Col>291</Col>
+      </Vertex>
+      <Vertex index="22">
+        <Row>19912</Row>
+        <Col>287</Col>
+      </Vertex>
+      <Vertex index="23">
+        <Row>16970</Row>
+        <Col>282</Col>
+      </Vertex>
+      <Vertex index="24">
+        <Row>14072</Row>
+        <Col>277</Col>
+      </Vertex>
+      <Vertex index="25">
+        <Row>11220</Row>
+        <Col>273</Col>
+      </Vertex>
+      <Vertex index="26">
+        <Row>8414</Row>
+        <Col>268</Col>
+      </Vertex>
+      <Vertex index="27">
+        <Row>5655</Row>
+        <Col>263</Col>
+      </Vertex>
+      <Vertex index="28">
+        <Row>2944</Row>
+        <Col>259</Col>
+      </Vertex>
+      <Vertex index="29">
+        <Row>283</Row>
+        <Col>254</Col>
+      </Vertex>
+      <Vertex index="30">
+        <Row>269</Row>
+        <Col>373</Col>
+      </Vertex>
+      <Vertex index="31">
+        <Row>260</Row>
+        <Col>492</Col>
+      </Vertex>
+      <Vertex index="32">
+        <Row>254</Row>
+        <Col>611</Col>
+      </Vertex>
+    </ValidData>
+  </ImageData>
+  <GeoData>
+    <EarthModel>WGS_84</EarthModel>
+    <SCP>
+      <ECF>
+        <X>549305.0532839028</X>
+        <Y>-4689740.681478931</Y>
+        <Z>4273701.3926359005</Z>
+      </ECF>
+      <LLH>
+        <Lat>42.33976978748072</Lat>
+        <Lon>-83.31943728529059</Lon>
+        <HAE>187.02444848045707</HAE>
+      </LLH>
+    </SCP>
+    <ImageCorners>
+      <ICP index="1:FRFC">
+        <Lat>42.124807043923035</Lat>
+        <Lon>-83.78965480326544</Lon>
+      </ICP>
+      <ICP index="2:FRLC">
+        <Lat>42.409669364503095</Lat>
+        <Lon>-83.86467825387093</Lon>
+      </ICP>
+      <ICP index="3:LRLC">
+        <Lat>42.555302708630144</Lat>
+        <Lon>-82.81047734590993</Lon>
+      </ICP>
+      <ICP index="4:LRFC">
+        <Lat>42.269780374490004</Lat>
+        <Lon>-82.7400401425692</Lon>
+      </ICP>
+    </ImageCorners>
+    <ValidData size="32">
+      <Vertex index="1">
+        <Lat>42.26640782508836</Lat>
+        <Lon>-83.83290150178561</Lon>
+      </Vertex>
+      <Vertex index="2">
+        <Lat>42.28895458350563</Lat>
+        <Lon>-83.8388412279537</Lon>
+      </Vertex>
+      <Vertex index="3">
+        <Lat>42.31150093781584</Lat>
+        <Lon>-83.84478519009815</Lon>
+      </Vertex>
+      <Vertex index="4">
+        <Lat>42.33404688030525</Lat>
+        <Lon>-83.85073339262391</Lon>
+      </Vertex>
+      <Vertex index="5">
+        <Lat>42.35659240325983</Lat>
+        <Lon>-83.85668583994176</Lon>
+      </Vertex>
+      <Vertex index="6">
+        <Lat>42.37517517618208</Lat>
+        <Lon>-83.72825858589283</Lon>
+      </Vertex>
+      <Vertex index="7">
+        <Lat>42.393614276901026</Lat>
+        <Lon>-83.59975358320908</Lon>
+      </Vertex>
+      <Vertex index="8">
+        <Lat>42.41190941767725</Lat>
+        <Lon>-83.471172055248</Lon>
+      </Vertex>
+      <Vertex index="9">
+        <Lat>42.430060315150556</Lat>
+        <Lon>-83.34251522993468</Lon>
+      </Vertex>
+      <Vertex index="10">
+        <Lat>42.44806669036915</Lat>
+        <Lon>-83.21378433966412</Lon>
+      </Vertex>
+      <Vertex index="11">
+        <Lat>42.46592826880936</Lat>
+        <Lon>-83.08498062124114</Lon>
+      </Vertex>
+      <Vertex index="12">
+        <Lat>42.48364478039583</Lat>
+        <Lon>-82.95610531581326</Lon>
+      </Vertex>
+      <Vertex index="13">
+        <Lat>42.50121595952196</Lat>
+        <Lon>-82.82715966879798</Lon>
+      </Vertex>
+      <Vertex index="14">
+        <Lat>42.4786191633591</Lat>
+        <Lon>-82.82156251442355</Lon>
+      </Vertex>
+      <Vertex index="15">
+        <Lat>42.45602198264153</Lat>
+        <Lon>-82.81596938092855</Lon>
+      </Vertex>
+      <Vertex index="16">
+        <Lat>42.43342442504817</Lat>
+        <Lon>-82.8103802640882</Lon>
+      </Vertex>
+      <Vertex index="17">
+        <Lat>42.4108264982575</Lat>
+        <Lon>-82.80479515968386</Lon>
+      </Vertex>
+      <Vertex index="18">
+        <Lat>42.388228209948124</Lat>
+        <Lon>-82.79921406350249</Lon>
+      </Vertex>
+      <Vertex index="19">
+        <Lat>42.3656295677983</Lat>
+        <Lon>-82.7936369713363</Lon>
+      </Vertex>
+      <Vertex index="20">
+        <Lat>42.3430305794866</Lat>
+        <Lon>-82.78806387898372</Lon>
+      </Vertex>
+      <Vertex index="21">
+        <Lat>42.32043125269101</Lat>
+        <Lon>-82.78249478224812</Lon>
+      </Vertex>
+      <Vertex index="22">
+        <Lat>42.30290814839173</Lat>
+        <Lon>-82.91108288058297</Lon>
+      </Vertex>
+      <Vertex index="23">
+        <Lat>42.28524059503774</Lat>
+        <Lon>-83.03960148644505</Lon>
+      </Vertex>
+      <Vertex index="24">
+        <Lat>42.26742885603311</Lat>
+        <Lon>-83.16804936397052</Lon>
+      </Vertex>
+      <Vertex index="25">
+        <Lat>42.24947319921633</Lat>
+        <Lon>-83.29642528149247</Lon>
+      </Vertex>
+      <Vertex index="26">
+        <Lat>42.23137389683891</Lat>
+        <Lon>-83.42472801161229</Lon>
+      </Vertex>
+      <Vertex index="27">
+        <Lat>42.213131225544714</Lat>
+        <Lon>-83.55295633126579</Lon>
+      </Vertex>
+      <Vertex index="28">
+        <Lat>42.194745466349865</Lat>
+        <Lon>-83.68110902178246</Lon>
+      </Vertex>
+      <Vertex index="29">
+        <Lat>42.17621690461985</Lat>
+        <Lon>-83.80918486898493</Lon>
+      </Vertex>
+      <Vertex index="30">
+        <Lat>42.19876520233028</Lat>
+        <Lon>-83.8151076951788</Lon>
+      </Vertex>
+      <Vertex index="31">
+        <Lat>42.22131312678729</Lat>
+        <Lon>-83.82103473978833</Lon>
+      </Vertex>
+      <Vertex index="32">
+        <Lat>42.24386067027777</Lat>
+        <Lon>-83.82696600719487</Lon>
+      </Vertex>
+    </ValidData>
+  </GeoData>
+  <Grid>
+    <ImagePlane>SLANT</ImagePlane>
+    <Type>RGAZIM</Type>
+    <TimeCOAPoly order1="3" order2="3">
+      <Coef exponent1="0" exponent2="0">0.43114347679106335</Coef>
+      <Coef exponent1="0" exponent2="1">3.369682748360385e-05</Coef>
+      <Coef exponent1="0" exponent2="2">3.8051614727681786e-16</Coef>
+      <Coef exponent1="0" exponent2="3">6.380715940470968e-18</Coef>
+      <Coef exponent1="1" exponent2="0">5.452255897996047e-09</Coef>
+      <Coef exponent1="1" exponent2="1">9.740932645380387e-12</Coef>
+      <Coef exponent1="1" exponent2="2">-3.956504778645991e-19</Coef>
+      <Coef exponent1="1" exponent2="3">-3.828750225949252e-24</Coef>
+      <Coef exponent1="2" exponent2="0">1.6718906496183256e-13</Coef>
+      <Coef exponent1="2" exponent2="1">1.7377942746776706e-17</Coef>
+      <Coef exponent1="2" exponent2="2">1.6162118235471971e-24</Coef>
+      <Coef exponent1="2" exponent2="3">4.308387989824545e-28</Coef>
+      <Coef exponent1="3" exponent2="0">-4.595651423947558e-19</Coef>
+      <Coef exponent1="3" exponent2="1">-1.2567485460941912e-22</Coef>
+      <Coef exponent1="3" exponent2="2">-3.90063837963794e-30</Coef>
+      <Coef exponent1="3" exponent2="3">-1.4205726773847225e-32</Coef>
+    </TimeCOAPoly>
+    <Row>
+      <UVectECF>
+        <X>0.4609537583310157</X>
+        <Y>0.7434909474104643</Y>
+        <Z>-0.4845026768743992</Z>
+      </UVectECF>
+      <SS>2.111095582614174</SS>
+      <ImpRespWid>2.352503627713791</ImpRespWid>
+      <Sgn>-1</Sgn>
+      <ImpRespBW>0.3765104449002621</ImpRespBW>
+      <KCtr>36.05806944252346</KCtr>
+      <DeltaK1>-0.18825569273413834</DeltaK1>
+      <DeltaK2>0.18847103633111573</DeltaK2>
+      <DeltaKCOAPoly order1="2" order2="2">
+        <Coef exponent1="0" exponent2="0">5.581327183623955e-16</Coef>
+        <Coef exponent1="0" exponent2="1">1.8057013213198316e-09</Coef>
+        <Coef exponent1="0" exponent2="2">1.6172683444755572e-12</Coef>
+        <Coef exponent1="1" exponent2="0">-4.23534428101353e-22</Coef>
+        <Coef exponent1="1" exponent2="1">1.1112259398134785e-13</Coef>
+        <Coef exponent1="1" exponent2="2">5.7934951611991185e-18</Coef>
+        <Coef exponent1="2" exponent2="0">-1.7653836711845076e-24</Coef>
+        <Coef exponent1="2" exponent2="1">-4.585810539268697e-19</Coef>
+        <Coef exponent1="2" exponent2="2">-6.345845815410496e-23</Coef>
+      </DeltaKCOAPoly>
+    </Row>
+    <Col>
+      <UVectECF>
+        <X>-0.25887157395482063</X>
+        <Y>0.6348753506317735</Y>
+        <Z>0.7279552165418863</Z>
+      </UVectECF>
+      <SS>22.0845012843154</SS>
+      <ImpRespWid>24.888237018435433</ImpRespWid>
+      <Sgn>-1</Sgn>
+      <ImpRespBW>0.035588787861667553</ImpRespBW>
+      <KCtr>1.711911855333155e-07</KCtr>
+      <DeltaK1>-0.017795432368042624</DeltaK1>
+      <DeltaK2>0.01779513813572617</DeltaK2>
+      <DeltaKCOAPoly order1="0" order2="3">
+        <Coef exponent1="0" exponent2="0">1.873956639029132e-08</Coef>
+        <Coef exponent1="0" exponent2="1">1.555437871732499e-10</Coef>
+        <Coef exponent1="0" exponent2="2">-5.426215126661499e-16</Coef>
+        <Coef exponent1="0" exponent2="3">-2.1369848781905203e-18</Coef>
+      </DeltaKCOAPoly>
+    </Col>
+  </Grid>
+  <Timeline>
+    <CollectStart>2025-06-19T23:24:51.565956Z</CollectStart>
+    <CollectDuration>0.8371470645791885</CollectDuration>
+    <IPP size="1">
+      <Set index="1">
+        <TStart>0.019662487524627154</TStart>
+        <TEnd>0.8349768981416963</TEnd>
+        <IPPStart>0</IPPStart>
+        <IPPEnd>1399</IPPEnd>
+        <IPPPoly order1="5">
+          <Coef exponent1="0">-33.76302709238264</Coef>
+          <Coef exponent1="1">1717.1289772006774</Coef>
+          <Coef exponent1="2">6.142522874432561e-10</Coef>
+          <Coef exponent1="3">-5.927270004141776e-10</Coef>
+          <Coef exponent1="4">1.654723416433841e-10</Coef>
+          <Coef exponent1="5">-6.292321840462454e-11</Coef>
+        </IPPPoly>
+      </Set>
+    </IPP>
+  </Timeline>
+  <Position>
+    <ARPPoly>
+      <X order1="5">
+        <Coef exponent1="0">170157.00802498282</Coef>
+        <Coef exponent1="1">-1965.2832623830566</Coef>
+        <Coef exponent1="2">0.2559853986226996</Coef>
+        <Coef exponent1="3">0.0005188218023653038</Coef>
+        <Coef exponent1="4">-2.1643396632195987e-07</Coef>
+        <Coef exponent1="5">6.83112643790297e-08</Coef>
+      </X>
+      <Y order1="5">
+        <Coef exponent1="0">-5304728.421866287</Coef>
+        <Coef exponent1="1">4818.247130024161</Coef>
+        <Coef exponent1="2">3.116154068659113</Coef>
+        <Coef exponent1="3">-0.0009181938700758387</Coef>
+        <Coef exponent1="4">3.254255991917381e-06</Coef>
+        <Coef exponent1="5">-1.5450161207875796e-06</Coef>
+      </Y>
+      <Z order1="5">
+        <Coef exponent1="0">4670726.44949635</Coef>
+        <Coef exponent1="1">5528.817450081016</Coef>
+        <Coef exponent1="2">-2.6369231951371344</Coef>
+        <Coef exponent1="3">-0.001036203296944604</Coef>
+        <Coef exponent1="4">-1.9782683035885702e-06</Coef>
+        <Coef exponent1="5">9.676471807125708e-07</Coef>
+      </Z>
+    </ARPPoly>
+    <GRPPoly>
+      <X order1="4">
+        <Coef exponent1="0">553982.5483854102</Coef>
+        <Coef exponent1="1">-7241.271925687</Coef>
+        <Coef exponent1="2">-612.9824053666493</Coef>
+        <Coef exponent1="3">1.1783647181706363</Coef>
+        <Coef exponent1="4">-0.31482294296821123</Coef>
+      </X>
+      <Y order1="4">
+        <Coef exponent1="0">-4697599.59894881</Coef>
+        <Coef exponent1="1">18956.789776476828</Coef>
+        <Coef exponent1="2">-96.09955569202724</Coef>
+        <Coef exponent1="3">-1.755676032318169</Coef>
+        <Coef exponent1="4">-0.0639742849889812</Coef>
+      </Y>
+      <Z order1="4">
+        <Coef exponent1="0">4264518.129813595</Coef>
+        <Coef exponent1="1">21676.532501314286</Coef>
+        <Coef exponent1="2">-129.10312492594895</Coef>
+        <Coef exponent1="3">-2.026413989546094</Coef>
+        <Coef exponent1="4">-0.056062033389621145</Coef>
+      </Z>
+    </GRPPoly>
+    <TxAPCPoly>
+      <X order1="5">
+        <Coef exponent1="0">170157.00814538109</Coef>
+        <Coef exponent1="1">-1965.2832628999226</Coef>
+        <Coef exponent1="2">0.2559854448664543</Coef>
+        <Coef exponent1="3">0.0005187007134269111</Coef>
+        <Coef exponent1="4">-7.754427927710024e-08</Coef>
+        <Coef exponent1="5">8.131500709902552e-09</Coef>
+      </X>
+      <Y order1="5">
+        <Coef exponent1="0">-5304728.421693534</Coef>
+        <Coef exponent1="1">4818.247131494444</Coef>
+        <Coef exponent1="2">3.116152642997259</Coef>
+        <Coef exponent1="3">-0.0009144780263404923</Coef>
+        <Coef exponent1="4">-1.078121724413966e-06</Coef>
+        <Coef exponent1="5">3.424972217223084e-07</Coef>
+      </Y>
+      <Z order1="5">
+        <Coef exponent1="0">4670726.449387354</Coef>
+        <Coef exponent1="1">5528.817451353476</Coef>
+        <Coef exponent1="2">-2.6369222689903715</Coef>
+        <Coef exponent1="3">-0.0010386075637859881</Coef>
+        <Coef exponent1="4">8.09760953312327e-07</Coef>
+        <Coef exponent1="5">-2.558875184072119e-07</Coef>
+      </Z>
+    </TxAPCPoly>
+    <RcvAPC size="1">
+      <RcvAPCPoly index="1">
+        <X order1="5">
+          <Coef exponent1="0">170157.0081453809</Coef>
+          <Coef exponent1="1">-1965.2832628991243</Coef>
+          <Coef exponent1="2">0.2559854397062461</Coef>
+          <Coef exponent1="3">0.0005187141973498018</Coef>
+          <Coef exponent1="4">-9.289909398542743e-08</Coef>
+          <Coef exponent1="5">1.4859800299653967e-08</Coef>
+        </X>
+        <Y order1="5">
+          <Coef exponent1="0">-5304728.421693525</Coef>
+          <Coef exponent1="1">4818.247131382177</Coef>
+          <Coef exponent1="2">3.116153343937601</Coef>
+          <Coef exponent1="3">-0.000916281056696981</Coef>
+          <Coef exponent1="4">1.007710991274935e-06</Coef>
+          <Coef exponent1="5">-5.599294018283548e-07</Coef>
+        </Y>
+        <Z order1="5">
+          <Coef exponent1="0">4670726.449387349</Coef>
+          <Coef exponent1="1">5528.817451372987</Coef>
+          <Coef exponent1="2">-2.636922389091431</Coef>
+          <Coef exponent1="3">-0.0010383313964532459</Coef>
+          <Coef exponent1="4">5.228180601437011e-07</Coef>
+          <Coef exponent1="5">-1.3033996399131986e-07</Coef>
+        </Z>
+      </RcvAPCPoly>
+    </RcvAPC>
+  </Position>
+  <RadarCollection>
+    <TxFrequency>
+      <Min>5376748468.363627</Min>
+      <Max>5433224197.637311</Max>
+    </TxFrequency>
+    <Waveform size="1">
+      <WFParameters index="1"/>
+    </Waveform>
+    <TxPolarization>V</TxPolarization>
+    <RcvChannels size="1">
+      <ChanParameters index="1">
+        <TxRcvPolarization>V:V</TxRcvPolarization>
+        <RcvAPCIndex>1</RcvAPCIndex>
+      </ChanParameters>
+    </RcvChannels>
+    <Area>
+      <Corner>
+        <ACP index="1">
+          <Lat>42.320431252671575</Lat>
+          <Lon>-82.7824947822536</Lon>
+          <HAE>330.66336181387305</HAE>
+        </ACP>
+        <ACP index="2">
+          <Lat>42.176216904637286</Lat>
+          <Lon>-83.80918486898662</Lon>
+          <HAE>350.67382414918393</HAE>
+        </ACP>
+        <ACP index="3">
+          <Lat>42.35659240327646</Lat>
+          <Lon>-83.85668583994908</Lon>
+          <HAE>350.72823506966233</HAE>
+        </ACP>
+        <ACP index="4">
+          <Lat>42.50121595950605</Lat>
+          <Lon>-82.82715966881146</Lon>
+          <HAE>330.90326842013747</HAE>
+        </ACP>
+      </Corner>
+      <Plane>
+        <RefPt>
+          <ECF>
+            <X>550735.5538229697</X>
+            <Y>-4689418.323671163</Y>
+            <Z>4273869.623683537</Z>
+          </ECF>
+          <Line>3180.0</Line>
+          <Sample>13034.0</Sample>
+        </RefPt>
+        <XDir>
+          <UVectECF>
+            <X>-0.2617620847886428</X>
+            <Y>0.6356260729953647</Y>
+            <Z>0.7262644879519939</Z>
+          </UVectECF>
+          <LineSpacing>3.194989449374287</LineSpacing>
+          <NumLines>6391</NumLines>
+          <FirstLine>0</FirstLine>
+        </XDir>
+        <YDir>
+          <UVectECF>
+            <X>-0.9612740587908775</X>
+            <Y>-0.23892434407025576</Y>
+            <Z>-0.13735844288021326</Z>
+          </UVectECF>
+          <SampleSpacing>3.194989449374287</SampleSpacing>
+          <NumSamples>26992</NumSamples>
+          <FirstSample>0</FirstSample>
+        </YDir>
+      </Plane>
+    </Area>
+  </RadarCollection>
+  <ImageFormation>
+    <RcvChanProc>
+      <NumChanProc>1</NumChanProc>
+      <ChanIndex>1</ChanIndex>
+    </RcvChanProc>
+    <TxRcvPolarizationProc>V:V</TxRcvPolarizationProc>
+    <TStartProc>0.01966248752462735</TStartProc>
+    <TEndProc>0.8343945307055438</TEndProc>
+    <TxFrequencyProc>
+      <MinProc>5376748468.363638</MinProc>
+      <MaxProc>5433224197.637318</MaxProc>
+    </TxFrequencyProc>
+    <ImageFormAlgo>PFA</ImageFormAlgo>
+    <STBeamComp>NO</STBeamComp>
+    <ImageBeamComp>NO</ImageBeamComp>
+    <AzAutofocus>NO</AzAutofocus>
+    <RgAutofocus>NO</RgAutofocus>
+    <Processing>
+      <Type>inscription</Type>
+      <Applied>true</Applied>
+      <Parameter name="krange">fixed</Parameter>
+      <Parameter name="kazimuth">sliding</Parameter>
+    </Processing>
+    <Processing>
+      <Type>slow_time_support_deficient</Type>
+      <Applied>true</Applied>
+      <Parameter name="t_image_start">0.019662476905867705</Parameter>
+      <Parameter name="t_image_end">0.8343942497580336</Parameter>
+      <Parameter name="t_cphd_start">0.01966248752462735</Parameter>
+      <Parameter name="t_cphd_end">0.8343945307055438</Parameter>
+      <Parameter name="t_cod_scp">0.431143554686523</Parameter>
+      <Parameter name="t_dwell_scp">0.11156782374618675</Parameter>
+    </Processing>
+    <Processing>
+      <Type>Valkyrie Systems Sage | sar_common_kit 1.16.0.0 @ 2025-07-23T21:45:24.192381Z</Type>
+      <Applied>true</Applied>
+    </Processing>
+    <Processing>
+      <Type>polar_deterministic_phase</Type>
+      <Applied>true</Applied>
+      <Parameter name="phase_contiguous">true</Parameter>
+      <Parameter name="quadratic_type">none</Parameter>
+      <Parameter name="linear_type">two_dimensional</Parameter>
+      <Parameter name="constant_type">two_dimensional</Parameter>
+    </Processing>
+  </ImageFormation>
+  <SCPCOA>
+    <SCPTime>0.43114347679106335</SCPTime>
+    <ARPPos>
+      <X>169309.73659170157</X>
+      <Y>-5302650.48687475</Y>
+      <Z>4673109.672827552</Z>
+    </ARPPos>
+    <ARPVel>
+      <X>-1965.062240247996</X>
+      <Y>4820.933637764646</Y>
+      <Z>5526.5430873022415</Z>
+    </ARPVel>
+    <ARPAcc>
+      <X>0.5133125437718502</X>
+      <Y>6.2299376800860795</Y>
+      <Z>-5.276529765782103</Z>
+    </ARPAcc>
+    <SideOfTrack>R</SideOfTrack>
+    <SlantRange>824367.542146099</SlantRange>
+    <GroundRange>411301.2832431989</GroundRange>
+    <DopplerConeAng>89.99326271994235</DopplerConeAng>
+    <GrazeAng>56.358260272117725</GrazeAng>
+    <IncidenceAng>33.641739727882275</IncidenceAng>
+    <TwistAng>-0.2012324018556926</TwistAng>
+    <SlopeAng>56.35849542858426</SlopeAng>
+    <AzimAng>259.27295532376</AzimAng>
+    <LayoverAng>259.5146702960956</LayoverAng>
+  </SCPCOA>
+  <Radiometric>
+    <NoiseLevel>
+      <NoiseLevelType>ABSOLUTE</NoiseLevelType>
+      <NoisePoly order1="0" order2="0">
+        <Coef exponent1="0" exponent2="0">32.07630751824562</Coef>
+      </NoisePoly>
+    </NoiseLevel>
+    <RCSSFPoly order1="7" order2="4">
+      <Coef exponent1="0" exponent2="0">18388.567577878286</Coef>
+      <Coef exponent1="0" exponent2="1">0.013397689924887744</Coef>
+      <Coef exponent1="0" exponent2="2">2.6341784467018682e-05</Coef>
+      <Coef exponent1="0" exponent2="3">2.17067408727709e-11</Coef>
+      <Coef exponent1="0" exponent2="4">2.0387236007622152e-14</Coef>
+      <Coef exponent1="1" exponent2="0">-0.25992390067118043</Coef>
+      <Coef exponent1="1" exponent2="1">-1.4696489350145907e-07</Coef>
+      <Coef exponent1="1" exponent2="2">-3.248842608172299e-10</Coef>
+      <Coef exponent1="1" exponent2="3">-3.2122974369320344e-16</Coef>
+      <Coef exponent1="1" exponent2="4">-5.968458098922412e-19</Coef>
+      <Coef exponent1="2" exponent2="0">-4.907220019751711e-06</Coef>
+      <Coef exponent1="2" exponent2="1">-6.668821446788342e-12</Coef>
+      <Coef exponent1="2" exponent2="2">-7.348834687058148e-15</Coef>
+      <Coef exponent1="2" exponent2="3">-2.7914136154633095e-20</Coef>
+      <Coef exponent1="2" exponent2="4">-2.4868625170666674e-23</Coef>
+      <Coef exponent1="3" exponent2="0">7.490660856233843e-10</Coef>
+      <Coef exponent1="3" exponent2="1">1.5132233972591416e-16</Coef>
+      <Coef exponent1="3" exponent2="2">5.242299234836933e-19</Coef>
+      <Coef exponent1="3" exponent2="3">2.3850575392750304e-24</Coef>
+      <Coef exponent1="3" exponent2="4">7.46139645227642e-27</Coef>
+      <Coef exponent1="4" exponent2="0">3.002581350755197e-14</Coef>
+      <Coef exponent1="4" exponent2="1">2.8315772141470304e-20</Coef>
+      <Coef exponent1="4" exponent2="2">3.847610588712167e-23</Coef>
+      <Coef exponent1="4" exponent2="3">1.4574774001120323e-28</Coef>
+      <Coef exponent1="4" exponent2="4">1.6562709843373814e-31</Coef>
+      <Coef exponent1="5" exponent2="0">-1.4713964555701184e-18</Coef>
+      <Coef exponent1="5" exponent2="1">-5.1323520248458e-25</Coef>
+      <Coef exponent1="5" exponent2="2">-6.723487078205952e-29</Coef>
+      <Coef exponent1="5" exponent2="3">-1.0509459730825765e-32</Coef>
+      <Coef exponent1="5" exponent2="4">-3.139105080449836e-35</Coef>
+      <Coef exponent1="6" exponent2="0">1.1764838860393903e-24</Coef>
+      <Coef exponent1="6" exponent2="1">-2.3732454566851234e-31</Coef>
+      <Coef exponent1="6" exponent2="2">1.1687688055644645e-32</Coef>
+      <Coef exponent1="6" exponent2="3">-1.3342222636872086e-37</Coef>
+      <Coef exponent1="6" exponent2="4">-1.995091920728924e-40</Coef>
+      <Coef exponent1="7" exponent2="0">8.237623205732555e-28</Coef>
+      <Coef exponent1="7" exponent2="1">-4.078605183740912e-35</Coef>
+      <Coef exponent1="7" exponent2="2">-1.0909885169673091e-36</Coef>
+      <Coef exponent1="7" exponent2="3">1.0937655617492437e-41</Coef>
+      <Coef exponent1="7" exponent2="4">3.4465633219527973e-44</Coef>
+    </RCSSFPoly>
+    <SigmaZeroSFPoly order1="7" order2="4">
+      <Coef exponent1="0" exponent2="0">132.68741368621176</Coef>
+      <Coef exponent1="0" exponent2="1">9.771477617180037e-05</Coef>
+      <Coef exponent1="0" exponent2="2">1.8937458912368635e-07</Coef>
+      <Coef exponent1="0" exponent2="3">1.5725938459317495e-13</Coef>
+      <Coef exponent1="0" exponent2="4">1.461215208721416e-16</Coef>
+      <Coef exponent1="1" exponent2="0">-0.00161332158347781</Coef>
+      <Coef exponent1="1" exponent2="1">-8.73964739300896e-10</Coef>
+      <Coef exponent1="1" exponent2="2">-1.96652945017164e-12</Coef>
+      <Coef exponent1="1" exponent2="3">-2.0165894798390748e-18</Coef>
+      <Coef exponent1="1" exponent2="4">-3.87721554458354e-21</Coef>
+      <Coef exponent1="2" exponent2="0">-4.0565786600939607e-08</Coef>
+      <Coef exponent1="2" exponent2="1">-5.259485369938187e-14</Coef>
+      <Coef exponent1="2" exponent2="2">-5.957476017375024e-17</Coef>
+      <Coef exponent1="2" exponent2="3">-2.0792578314879274e-22</Coef>
+      <Coef exponent1="2" exponent2="4">-1.9012732819028767e-25</Coef>
+      <Coef exponent1="3" exponent2="0">5.3787284963334e-12</Coef>
+      <Coef exponent1="3" exponent2="1">1.0496769950444116e-18</Coef>
+      <Coef exponent1="3" exponent2="2">3.849623825642816e-21</Coef>
+      <Coef exponent1="3" exponent2="3">1.721409925482622e-26</Coef>
+      <Coef exponent1="3" exponent2="4">5.157338661523591e-29</Coef>
+      <Coef exponent1="4" exponent2="0">2.2396694525435984e-16</Coef>
+      <Coef exponent1="4" exponent2="1">2.0885318960221042e-22</Coef>
+      <Coef exponent1="4" exponent2="2">2.8465683449319937e-25</Coef>
+      <Coef exponent1="4" exponent2="3">1.057361897071206e-30</Coef>
+      <Coef exponent1="4" exponent2="4">1.2233409780836297e-33</Coef>
+      <Coef exponent1="5" exponent2="0">-1.0295582046343016e-20</Coef>
+      <Coef exponent1="5" exponent2="1">-3.3341899032883316e-27</Coef>
+      <Coef exponent1="5" exponent2="2">-5.264447836970074e-31</Coef>
+      <Coef exponent1="5" exponent2="3">-7.557453974248368e-35</Coef>
+      <Coef exponent1="5" exponent2="4">-2.173730676059398e-37</Coef>
+      <Coef exponent1="6" exponent2="0">-3.38449967259526e-27</Coef>
+      <Coef exponent1="6" exponent2="1">-1.340021183794389e-32</Coef>
+      <Coef exponent1="6" exponent2="2">6.801520152386987e-35</Coef>
+      <Coef exponent1="6" exponent2="3">-9.833397222219334e-40</Coef>
+      <Coef exponent1="6" exponent2="4">-1.4709832440761177e-42</Coef>
+      <Coef exponent1="7" exponent2="0">6.1060670737739884e-30</Coef>
+      <Coef exponent1="7" exponent2="1">-2.4345744892359492e-37</Coef>
+      <Coef exponent1="7" exponent2="2">-7.053541732115896e-39</Coef>
+      <Coef exponent1="7" exponent2="3">7.943194504210344e-44</Coef>
+      <Coef exponent1="7" exponent2="4">2.3971079880334483e-46</Coef>
+    </SigmaZeroSFPoly>
+    <BetaZeroSFPoly order1="7" order2="4">
+      <Coef exponent1="0" exponent2="0">239.5263618917635</Coef>
+      <Coef exponent1="0" exponent2="1">0.00017810209060650507</Coef>
+      <Coef exponent1="0" exponent2="2">3.424190067379763e-07</Coef>
+      <Coef exponent1="0" exponent2="3">2.8703585419495473e-13</Coef>
+      <Coef exponent1="0" exponent2="4">2.6397993994013124e-16</Coef>
+      <Coef exponent1="1" exponent2="0">-0.0036686006185676586</Coef>
+      <Coef exponent1="1" exponent2="1">-2.1787865018223862e-09</Coef>
+      <Coef exponent1="1" exponent2="2">-4.620785220261921e-12</Coef>
+      <Coef exponent1="1" exponent2="3">-4.564292403976393e-18</Coef>
+      <Coef exponent1="1" exponent2="4">-8.136337621805955e-21</Coef>
+      <Coef exponent1="2" exponent2="0">-6.012483115778855e-08</Coef>
+      <Coef exponent1="2" exponent2="1">-8.673640861150128e-14</Coef>
+      <Coef exponent1="2" exponent2="2">-9.133220368320363e-17</Coef>
+      <Coef exponent1="2" exponent2="3">-3.6250713672415084e-22</Coef>
+      <Coef exponent1="2" exponent2="4">-3.0615176065440515e-25</Coef>
+      <Coef exponent1="3" exponent2="0">9.82184396225662e-12</Coef>
+      <Coef exponent1="3" exponent2="1">2.2860402795498494e-18</Coef>
+      <Coef exponent1="3" exponent2="2">6.811852640119545e-21</Coef>
+      <Coef exponent1="3" exponent2="3">3.124532462479627e-26</Coef>
+      <Coef exponent1="3" exponent2="4">9.866414248310809e-29</Coef>
+      <Coef exponent1="4" exponent2="0">3.839026381217778e-16</Coef>
+      <Coef exponent1="4" exponent2="1">3.7347421168915136e-22</Coef>
+      <Coef exponent1="4" exponent2="2">4.952923700172218e-25</Coef>
+      <Coef exponent1="4" exponent2="3">1.9000430085527915e-30</Coef>
+      <Coef exponent1="4" exponent2="4">2.082340376669597e-33</Coef>
+      <Coef exponent1="5" exponent2="0">-1.9581775570479634e-20</Coef>
+      <Coef exponent1="5" exponent2="1">-7.646497727193134e-27</Coef>
+      <Coef exponent1="5" exponent2="2">-1.039376032357133e-30</Coef>
+      <Coef exponent1="5" exponent2="3">-1.3735296263760412e-34</Coef>
+      <Coef exponent1="5" exponent2="4">-4.153822061978065e-37</Coef>
+      <Coef exponent1="6" exponent2="0">2.4772376367033613e-26</Coef>
+      <Coef exponent1="6" exponent2="1">2.239003692138558e-33</Coef>
+      <Coef exponent1="6" exponent2="2">1.6092690620369485e-34</Coef>
+      <Coef exponent1="6" exponent2="3">-1.72336703095541e-39</Coef>
+      <Coef exponent1="6" exponent2="4">-2.5165184343326127e-42</Coef>
+      <Coef exponent1="7" exponent2="0">1.0649201357298032e-29</Coef>
+      <Coef exponent1="7" exponent2="1">-1.1443741545161176e-37</Coef>
+      <Coef exponent1="7" exponent2="2">-1.477998932873325e-38</Coef>
+      <Coef exponent1="7" exponent2="3">1.4205747090618169e-43</Coef>
+      <Coef exponent1="7" exponent2="4">4.553253001316112e-46</Coef>
+    </BetaZeroSFPoly>
+    <GammaZeroSFPoly order1="7" order2="4">
+      <Coef exponent1="0" exponent2="0">159.3757911564462</Coef>
+      <Coef exponent1="0" exponent2="1">0.00011726683863100364</Coef>
+      <Coef exponent1="0" exponent2="2">2.2739048203239803e-07</Coef>
+      <Coef exponent1="0" exponent2="3">1.886836484325884e-13</Coef>
+      <Coef exponent1="0" exponent2="4">1.7563351240810161e-16</Coef>
+      <Coef exponent1="1" exponent2="0">-0.0017151382288759717</Coef>
+      <Coef exponent1="1" exponent2="1">-8.830158106050214e-10</Coef>
+      <Coef exponent1="1" exponent2="2">-2.0509314122729462e-12</Coef>
+      <Coef exponent1="1" exponent2="3">-2.16579675990931e-18</Coef>
+      <Coef exponent1="1" exponent2="4">-4.309170547539464e-21</Coef>
+      <Coef exponent1="2" exponent2="0">-5.103753731876118e-08</Coef>
+      <Coef exponent1="2" exponent2="1">-6.447586452036121e-14</Coef>
+      <Coef exponent1="2" exponent2="2">-7.403563987408032e-17</Coef>
+      <Coef exponent1="2" exponent2="3">-2.5193762923915427e-22</Coef>
+      <Coef exponent1="2" exponent2="4">-2.3893242566462285e-25</Coef>
+      <Coef exponent1="3" exponent2="0">6.4031786960367336e-12</Coef>
+      <Coef exponent1="3" exponent2="1">1.1452805355708316e-18</Coef>
+      <Coef exponent1="3" exponent2="2">4.6564237330914145e-21</Coef>
+      <Coef exponent1="3" exponent2="3">2.059568866450088e-26</Coef>
+      <Coef exponent1="3" exponent2="4">5.997703280381259e-29</Coef>
+      <Coef exponent1="4" exponent2="0">2.7456197408588673e-16</Coef>
+      <Coef exponent1="4" exponent2="1">2.519105297404708e-22</Coef>
+      <Coef exponent1="4" exponent2="2">3.463316671591836e-25</Coef>
+      <Coef exponent1="4" exponent2="3">1.2734686347315251e-30</Coef>
+      <Coef exponent1="4" exponent2="4">1.5130121141438986e-33</Coef>
+      <Coef exponent1="5" exponent2="0">-1.2040381244055935e-20</Coef>
+      <Coef exponent1="5" exponent2="1">-3.549228411234408e-27</Coef>
+      <Coef exponent1="5" exponent2="2">-6.583849737480134e-31</Coef>
+      <Coef exponent1="5" exponent2="3">-9.046433217461715e-35</Coef>
+      <Coef exponent1="5" exponent2="4">-2.5307773864095333e-37</Coef>
+      <Coef exponent1="6" exponent2="0">-1.037282762658617e-26</Coef>
+      <Coef exponent1="6" exponent2="1">-2.1152431083942704e-32</Coef>
+      <Coef exponent1="6" exponent2="2">7.50859170804193e-35</Coef>
+      <Coef exponent1="6" exponent2="3">-1.1925867122190903e-39</Coef>
+      <Coef exponent1="6" exponent2="4">-1.8115973555355534e-42</Coef>
+      <Coef exponent1="7" exponent2="0">7.391519191652412e-30</Coef>
+      <Coef exponent1="7" exponent2="1">-4.285253653968618e-37</Coef>
+      <Coef exponent1="7" exponent2="2">-7.854562930544908e-39</Coef>
+      <Coef exponent1="7" exponent2="3">9.5666597500423e-44</Coef>
+      <Coef exponent1="7" exponent2="4">2.7992512972868635e-46</Coef>
+    </GammaZeroSFPoly>
+  </Radiometric>
+  <Antenna>
+    <Tx>
+      <XAxisPoly>
+        <X order1="4">
+          <Coef exponent1="0">-0.2588790480688499</Coef>
+          <Coef exponent1="1">6.718906000095223e-05</Coef>
+          <Coef exponent1="2">2.7110992750776374e-07</Coef>
+          <Coef exponent1="3">-4.894882620171725e-09</Coef>
+          <Coef exponent1="4">8.99234521478582e-11</Coef>
+        </X>
+        <Y order1="4">
+          <Coef exponent1="0">0.6346086494710761</Coef>
+          <Coef exponent1="1">0.0008228949623020874</Coef>
+          <Coef exponent1="2">-3.557473847395139e-07</Coef>
+          <Coef exponent1="3">-5.3866536944194104e-09</Coef>
+          <Coef exponent1="4">1.7314270617969179e-10</Coef>
+        </Y>
+        <Z order1="4">
+          <Coef exponent1="0">0.7281851243153732</Coef>
+          <Coef exponent1="1">-0.000693267970124619</Coef>
+          <Coef exponent1="2">-3.9062489282792616e-07</Coef>
+          <Coef exponent1="3">2.984095608308275e-09</Coef>
+          <Coef exponent1="4">-1.1945436860368106e-10</Coef>
+        </Z>
+      </XAxisPoly>
+      <YAxisPoly>
+        <X order1="4">
+          <Coef exponent1="0">0.848059519712635</Coef>
+          <Coef exponent1="1">-0.00011280867258257237</Coef>
+          <Coef exponent1="2">1.858525950992164e-08</Coef>
+          <Coef exponent1="3">2.9621172934051554e-09</Coef>
+          <Coef exponent1="4">-6.701127627327346e-11</Coef>
+        </X>
+        <Y order1="4">
+          <Coef exponent1="0">-0.21153536505078543</Coef>
+          <Coef exponent1="1">0.0002956162551041452</Coef>
+          <Coef exponent1="2">5.960989412777304e-08</Coef>
+          <Coef exponent1="3">6.452140692608276e-09</Coef>
+          <Coef exponent1="4">-9.28551706258391e-11</Coef>
+        </Y>
+        <Z order1="4">
+          <Coef exponent1="0">0.4858476263289056</Coef>
+          <Coef exponent1="1">0.0003256209735041766</Coef>
+          <Coef exponent1="2">-2.1773013427363705e-07</Coef>
+          <Coef exponent1="3">-2.420863756257806e-09</Coef>
+          <Coef exponent1="4">8.04822349866849e-11</Coef>
+        </Z>
+      </YAxisPoly>
+      <FreqZero>5405000002.56</FreqZero>
+      <EB>
+        <DCXPoly order1="1">
+          <Coef exponent1="0">-0.011862080771089092</Coef>
+          <Coef exponent1="1">0.02775757554455225</Coef>
+        </DCXPoly>
+        <DCYPoly order1="0">
+          <Coef exponent1="0">-0.004971733620544121</Coef>
+        </DCYPoly>
+      </EB>
+      <Array>
+        <GainPoly order1="6" order2="6">
+          <Coef exponent1="0" exponent2="0">0.0</Coef>
+          <Coef exponent1="0" exponent2="1">18.88243416886886</Coef>
+          <Coef exponent1="0" exponent2="2">108.32572407626921</Coef>
+          <Coef exponent1="0" exponent2="3">-3512.5052253564763</Coef>
+          <Coef exponent1="0" exponent2="4">-255631.96178934185</Coef>
+          <Coef exponent1="0" exponent2="5">383672.8972010032</Coef>
+          <Coef exponent1="0" exponent2="6">10596113.343214478</Coef>
+          <Coef exponent1="1" exponent2="0">102.69585850387216</Coef>
+          <Coef exponent1="1" exponent2="1">20.37099244841526</Coef>
+          <Coef exponent1="1" exponent2="2">406.8796952613948</Coef>
+          <Coef exponent1="1" exponent2="3">-11894.61957618942</Coef>
+          <Coef exponent1="1" exponent2="4">-335921.5334638585</Coef>
+          <Coef exponent1="1" exponent2="5">1092054.7475391235</Coef>
+          <Coef exponent1="1" exponent2="6">31493153.86876818</Coef>
+          <Coef exponent1="2" exponent2="0">-671859.1068183419</Coef>
+          <Coef exponent1="2" exponent2="1">-103376.19428416311</Coef>
+          <Coef exponent1="2" exponent2="2">-4239244.67084687</Coef>
+          <Coef exponent1="2" exponent2="3">77546938.61791675</Coef>
+          <Coef exponent1="2" exponent2="4">2658508819.672699</Coef>
+          <Coef exponent1="2" exponent2="5">-7954313902.20891</Coef>
+          <Coef exponent1="2" exponent2="6">-300303488302.2016</Coef>
+          <Coef exponent1="3" exponent2="0">2427487.623770196</Coef>
+          <Coef exponent1="3" exponent2="1">-14038750.269321833</Coef>
+          <Coef exponent1="3" exponent2="2">-894755530.9267012</Coef>
+          <Coef exponent1="3" exponent2="3">7120316087.448838</Coef>
+          <Coef exponent1="3" exponent2="4">514787918928.5783</Coef>
+          <Coef exponent1="3" exponent2="5">-249407933324.88647</Coef>
+          <Coef exponent1="3" exponent2="6">-47867143450514.39</Coef>
+          <Coef exponent1="4" exponent2="0">-8115424962.710634</Coef>
+          <Coef exponent1="4" exponent2="1">41592975556.22335</Coef>
+          <Coef exponent1="4" exponent2="2">3844368718270.374</Coef>
+          <Coef exponent1="4" exponent2="3">-26756732134335.547</Coef>
+          <Coef exponent1="4" exponent2="4">-2098744845582476.5</Coef>
+          <Coef exponent1="4" exponent2="5">1463755779351443.0</Coef>
+          <Coef exponent1="4" exponent2="6">2.269222853088032e+17</Coef>
+          <Coef exponent1="5" exponent2="0">214368166940.94327</Coef>
+          <Coef exponent1="5" exponent2="1">1129468890346.4326</Coef>
+          <Coef exponent1="5" exponent2="2">50984786841624.45</Coef>
+          <Coef exponent1="5" exponent2="3">-190463315920311.88</Coef>
+          <Coef exponent1="5" exponent2="4">-1.3002348745377702e+16</Coef>
+          <Coef exponent1="5" exponent2="5">-1.2481214740052688e+17</Coef>
+          <Coef exponent1="5" exponent2="6">-3.934637787651569e+18</Coef>
+          <Coef exponent1="6" exponent2="0">-584306129751270.4</Coef>
+          <Coef exponent1="6" exponent2="1">-2198020706644304.8</Coef>
+          <Coef exponent1="6" exponent2="2">-1.771529189523504e+17</Coef>
+          <Coef exponent1="6" exponent2="3">6.475785382897446e+17</Coef>
+          <Coef exponent1="6" exponent2="4">5.8291091965828145e+19</Coef>
+          <Coef exponent1="6" exponent2="5">2.482062566037333e+20</Coef>
+          <Coef exponent1="6" exponent2="6">3.3402015935779276e+21</Coef>
+        </GainPoly>
+        <PhasePoly order1="0" order2="5">
+          <Coef exponent1="0" exponent2="0">0.0</Coef>
+          <Coef exponent1="0" exponent2="1">-1.231111414487659</Coef>
+          <Coef exponent1="0" exponent2="2">138.3138284289292</Coef>
+          <Coef exponent1="0" exponent2="3">1808.0074451426667</Coef>
+          <Coef exponent1="0" exponent2="4">-14864.323562231797</Coef>
+          <Coef exponent1="0" exponent2="5">-210308.6353194984</Coef>
+        </PhasePoly>
+      </Array>
+      <Elem>
+        <GainPoly order1="6" order2="0">
+          <Coef exponent1="0" exponent2="0">0.0</Coef>
+          <Coef exponent1="1" exponent2="0">-0.828069839850197</Coef>
+          <Coef exponent1="2" exponent2="0">-3509.301379879562</Coef>
+          <Coef exponent1="3" exponent2="0">-0.37492731368067206</Coef>
+          <Coef exponent1="4" exponent2="0">-751.3906558649585</Coef>
+          <Coef exponent1="5" exponent2="0">87.64359341346311</Coef>
+          <Coef exponent1="6" exponent2="0">-87345.05163681757</Coef>
+        </GainPoly>
+        <PhasePoly order1="0" order2="0">
+          <Coef exponent1="0" exponent2="0">0.0</Coef>
+        </PhasePoly>
+      </Elem>
+      <GainBSPoly order1="0">
+        <Coef exponent1="0">0.0</Coef>
+      </GainBSPoly>
+      <EBFreqShift>true</EBFreqShift>
+      <MLFreqDilation>true</MLFreqDilation>
+    </Tx>
+    <Rcv>
+      <XAxisPoly>
+        <X order1="4">
+          <Coef exponent1="0">-0.2588790480688499</Coef>
+          <Coef exponent1="1">6.718906000095223e-05</Coef>
+          <Coef exponent1="2">2.7110992750776374e-07</Coef>
+          <Coef exponent1="3">-4.894882620171725e-09</Coef>
+          <Coef exponent1="4">8.99234521478582e-11</Coef>
+        </X>
+        <Y order1="4">
+          <Coef exponent1="0">0.6346086494710761</Coef>
+          <Coef exponent1="1">0.0008228949623020874</Coef>
+          <Coef exponent1="2">-3.557473847395139e-07</Coef>
+          <Coef exponent1="3">-5.3866536944194104e-09</Coef>
+          <Coef exponent1="4">1.7314270617969179e-10</Coef>
+        </Y>
+        <Z order1="4">
+          <Coef exponent1="0">0.7281851243153732</Coef>
+          <Coef exponent1="1">-0.000693267970124619</Coef>
+          <Coef exponent1="2">-3.9062489282792616e-07</Coef>
+          <Coef exponent1="3">2.984095608308275e-09</Coef>
+          <Coef exponent1="4">-1.1945436860368106e-10</Coef>
+        </Z>
+      </XAxisPoly>
+      <YAxisPoly>
+        <X order1="4">
+          <Coef exponent1="0">0.848059519712635</Coef>
+          <Coef exponent1="1">-0.00011280867258257237</Coef>
+          <Coef exponent1="2">1.858525950992164e-08</Coef>
+          <Coef exponent1="3">2.9621172934051554e-09</Coef>
+          <Coef exponent1="4">-6.701127627327346e-11</Coef>
+        </X>
+        <Y order1="4">
+          <Coef exponent1="0">-0.21153536505078543</Coef>
+          <Coef exponent1="1">0.0002956162551041452</Coef>
+          <Coef exponent1="2">5.960989412777304e-08</Coef>
+          <Coef exponent1="3">6.452140692608276e-09</Coef>
+          <Coef exponent1="4">-9.28551706258391e-11</Coef>
+        </Y>
+        <Z order1="4">
+          <Coef exponent1="0">0.4858476263289056</Coef>
+          <Coef exponent1="1">0.0003256209735041766</Coef>
+          <Coef exponent1="2">-2.1773013427363705e-07</Coef>
+          <Coef exponent1="3">-2.420863756257806e-09</Coef>
+          <Coef exponent1="4">8.04822349866849e-11</Coef>
+        </Z>
+      </YAxisPoly>
+      <FreqZero>5405000002.56</FreqZero>
+      <EB>
+        <DCXPoly order1="1">
+          <Coef exponent1="0">-0.011862080771089092</Coef>
+          <Coef exponent1="1">0.02775757554455225</Coef>
+        </DCXPoly>
+        <DCYPoly order1="0">
+          <Coef exponent1="0">-0.004971733620544121</Coef>
+        </DCYPoly>
+      </EB>
+      <Array>
+        <GainPoly order1="6" order2="6">
+          <Coef exponent1="0" exponent2="0">0.0</Coef>
+          <Coef exponent1="0" exponent2="1">18.88243416886886</Coef>
+          <Coef exponent1="0" exponent2="2">108.32572407626921</Coef>
+          <Coef exponent1="0" exponent2="3">-3512.5052253564763</Coef>
+          <Coef exponent1="0" exponent2="4">-255631.96178934185</Coef>
+          <Coef exponent1="0" exponent2="5">383672.8972010032</Coef>
+          <Coef exponent1="0" exponent2="6">10596113.343214478</Coef>
+          <Coef exponent1="1" exponent2="0">102.69585850387216</Coef>
+          <Coef exponent1="1" exponent2="1">20.37099244841526</Coef>
+          <Coef exponent1="1" exponent2="2">406.8796952613948</Coef>
+          <Coef exponent1="1" exponent2="3">-11894.61957618942</Coef>
+          <Coef exponent1="1" exponent2="4">-335921.5334638585</Coef>
+          <Coef exponent1="1" exponent2="5">1092054.7475391235</Coef>
+          <Coef exponent1="1" exponent2="6">31493153.86876818</Coef>
+          <Coef exponent1="2" exponent2="0">-671859.1068183419</Coef>
+          <Coef exponent1="2" exponent2="1">-103376.19428416311</Coef>
+          <Coef exponent1="2" exponent2="2">-4239244.67084687</Coef>
+          <Coef exponent1="2" exponent2="3">77546938.61791675</Coef>
+          <Coef exponent1="2" exponent2="4">2658508819.672699</Coef>
+          <Coef exponent1="2" exponent2="5">-7954313902.20891</Coef>
+          <Coef exponent1="2" exponent2="6">-300303488302.2016</Coef>
+          <Coef exponent1="3" exponent2="0">2427487.623770196</Coef>
+          <Coef exponent1="3" exponent2="1">-14038750.269321833</Coef>
+          <Coef exponent1="3" exponent2="2">-894755530.9267012</Coef>
+          <Coef exponent1="3" exponent2="3">7120316087.448838</Coef>
+          <Coef exponent1="3" exponent2="4">514787918928.5783</Coef>
+          <Coef exponent1="3" exponent2="5">-249407933324.88647</Coef>
+          <Coef exponent1="3" exponent2="6">-47867143450514.39</Coef>
+          <Coef exponent1="4" exponent2="0">-8115424962.710634</Coef>
+          <Coef exponent1="4" exponent2="1">41592975556.22335</Coef>
+          <Coef exponent1="4" exponent2="2">3844368718270.374</Coef>
+          <Coef exponent1="4" exponent2="3">-26756732134335.547</Coef>
+          <Coef exponent1="4" exponent2="4">-2098744845582476.5</Coef>
+          <Coef exponent1="4" exponent2="5">1463755779351443.0</Coef>
+          <Coef exponent1="4" exponent2="6">2.269222853088032e+17</Coef>
+          <Coef exponent1="5" exponent2="0">214368166940.94327</Coef>
+          <Coef exponent1="5" exponent2="1">1129468890346.4326</Coef>
+          <Coef exponent1="5" exponent2="2">50984786841624.45</Coef>
+          <Coef exponent1="5" exponent2="3">-190463315920311.88</Coef>
+          <Coef exponent1="5" exponent2="4">-1.3002348745377702e+16</Coef>
+          <Coef exponent1="5" exponent2="5">-1.2481214740052688e+17</Coef>
+          <Coef exponent1="5" exponent2="6">-3.934637787651569e+18</Coef>
+          <Coef exponent1="6" exponent2="0">-584306129751270.4</Coef>
+          <Coef exponent1="6" exponent2="1">-2198020706644304.8</Coef>
+          <Coef exponent1="6" exponent2="2">-1.771529189523504e+17</Coef>
+          <Coef exponent1="6" exponent2="3">6.475785382897446e+17</Coef>
+          <Coef exponent1="6" exponent2="4">5.8291091965828145e+19</Coef>
+          <Coef exponent1="6" exponent2="5">2.482062566037333e+20</Coef>
+          <Coef exponent1="6" exponent2="6">3.3402015935779276e+21</Coef>
+        </GainPoly>
+        <PhasePoly order1="0" order2="5">
+          <Coef exponent1="0" exponent2="0">0.0</Coef>
+          <Coef exponent1="0" exponent2="1">-1.231111414487659</Coef>
+          <Coef exponent1="0" exponent2="2">138.3138284289292</Coef>
+          <Coef exponent1="0" exponent2="3">1808.0074451426667</Coef>
+          <Coef exponent1="0" exponent2="4">-14864.323562231797</Coef>
+          <Coef exponent1="0" exponent2="5">-210308.6353194984</Coef>
+        </PhasePoly>
+      </Array>
+      <Elem>
+        <GainPoly order1="6" order2="0">
+          <Coef exponent1="0" exponent2="0">0.0</Coef>
+          <Coef exponent1="1" exponent2="0">-0.828069839850197</Coef>
+          <Coef exponent1="2" exponent2="0">-3509.301379879562</Coef>
+          <Coef exponent1="3" exponent2="0">-0.37492731368067206</Coef>
+          <Coef exponent1="4" exponent2="0">-751.3906558649585</Coef>
+          <Coef exponent1="5" exponent2="0">87.64359341346311</Coef>
+          <Coef exponent1="6" exponent2="0">-87345.05163681757</Coef>
+        </GainPoly>
+        <PhasePoly order1="0" order2="0">
+          <Coef exponent1="0" exponent2="0">0.0</Coef>
+        </PhasePoly>
+      </Elem>
+      <GainBSPoly order1="0">
+        <Coef exponent1="0">0.0</Coef>
+      </GainBSPoly>
+      <EBFreqShift>true</EBFreqShift>
+      <MLFreqDilation>true</MLFreqDilation>
+    </Rcv>
+  </Antenna>
+  <PFA>
+    <FPN>
+      <X>0.08621365879662335</X>
+      <Y>-0.7340944446623325</Y>
+      <Z>0.6735521890223026</Z>
+    </FPN>
+    <IPN>
+      <X>0.8488269203808159</X>
+      <Y>-0.2101297229528427</Y>
+      <Z>0.4851168505847454</Z>
+    </IPN>
+    <PolarAngRefTime>0.431143554686523</PolarAngRefTime>
+    <PolarAngPoly order1="9">
+      <Coef exponent1="0">0.003970832980044093</Coef>
+      <Coef exponent1="1">-0.009209906099950394</Coef>
+      <Coef exponent1="2">-3.286411102846209e-07</Coef>
+      <Coef exponent1="3">2.4950334310147964e-07</Coef>
+      <Coef exponent1="4">5.216583606797226e-11</Coef>
+      <Coef exponent1="5">-1.0042792464297209e-10</Coef>
+      <Coef exponent1="6">1.6669880087610145e-10</Coef>
+      <Coef exponent1="7">-1.8765965041174638e-10</Coef>
+      <Coef exponent1="8">1.1593643768784444e-10</Coef>
+      <Coef exponent1="9">-3.0266551275171365e-11</Coef>
+    </PolarAngPoly>
+    <SpatialFreqSFPoly order1="8">
+      <Coef exponent1="0">0.999996341676727</Coef>
+      <Coef exponent1="1">0.00016020059450467316</Coef>
+      <Coef exponent1="2">0.036867203504942346</Coef>
+      <Coef exponent1="3">6.710787705074147e-05</Coef>
+      <Coef exponent1="4">-0.011840563260659869</Coef>
+      <Coef exponent1="5">0.040821502169313344</Coef>
+      <Coef exponent1="6">10.004921705594006</Coef>
+      <Coef exponent1="7">9.148963089129802</Coef>
+      <Coef exponent1="8">-449760.1093446075</Coef>
+    </SpatialFreqSFPoly>
+    <Krg1>35.86981422007334</Krg1>
+    <Krg2>36.2463246649736</Krg2>
+    <Kaz1>-0.139917128316343</Kaz1>
+    <Kaz2>0.14260042455637836</Kaz2>
+    <STDeskew>
+      <Applied>true</Applied>
+      <STDSPhasePoly order1="2" order2="2">
+        <Coef exponent1="0" exponent2="0">-0.0</Coef>
+        <Coef exponent1="0" exponent2="1">-1.1993347231054746e-07</Coef>
+        <Coef exponent1="0" exponent2="2">5.595383367120716e-06</Coef>
+        <Coef exponent1="1" exponent2="0">-0.0</Coef>
+        <Coef exponent1="1" exponent2="1">1.7456029766074228e-09</Coef>
+        <Coef exponent1="1" exponent2="2">1.608888959148681e-12</Coef>
+        <Coef exponent1="2" exponent2="0">-0.0</Coef>
+        <Coef exponent1="2" exponent2="1">5.516224100131781e-14</Coef>
+        <Coef exponent1="2" exponent2="2">2.851477651032691e-18</Coef>
+      </STDSPhasePoly>
+    </STDeskew>
+  </PFA>
+</SICD>

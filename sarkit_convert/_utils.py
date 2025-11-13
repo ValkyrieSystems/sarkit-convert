@@ -124,6 +124,38 @@ def polyfit2d_tol(x, y, z, max_order_x, max_order_y, tol, strict_tol=False):
     return best[0]
 
 
+def polyshift(poly, new_origin):
+    """Returns new polynomial with shifted origin
+
+    Args
+    ----
+    poly: array-like
+        1d polynomial coefficients, with constant term first
+    new_origin: float
+        location in `poly`'s domain to place new polynomial's origin
+
+    Returns
+    -------
+    new_poly
+        polynomial of same order as `poly` for which new_poly(0) == poly(new_origin)
+    """
+
+    working_coeffs = np.array(list(reversed(poly)))
+    output_coeffs = []
+
+    for _ in np.arange(len(poly)):
+        quot = np.zeros(shape=working_coeffs.shape)
+        rem = 0.0
+        for ndx, val in enumerate(working_coeffs):
+            carry = rem * new_origin
+            rem = val + carry
+            quot[ndx] = rem
+        output_coeffs.append(rem)
+        working_coeffs = quot[:-1]
+
+    return np.array(output_coeffs)
+
+
 def broadening_from_amp(amp_vals, threshold_db=None):
     """Compute the broadening factor from amplitudes
 

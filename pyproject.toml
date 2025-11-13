@@ -23,7 +23,8 @@ dynamic = ["version"]
 dependencies = [
     "lxml>=5.1.0",
     "numpy>=1.26.3",
-    "sarkit[verification]>=0.6.0",
+    "sarkit[verification]>=0.10.0",
+    "scipy>=1.15.1",
 ]
 
 [project.optional-dependencies]
@@ -36,20 +37,16 @@ cosmo = [
     "astropy>=6.0.0",
     "h5py>=3.12.1",
     "python-dateutil>=2.9.0",
-    "scipy>=1.15.1",
     "shapely>=2.0.2",
 ]
 
 tsx = [
     "lxml>=5.1.0",
     "python-dateutil>=2.9.0",
-    "sarkit[verification]>=0.5.0",
-    "scipy>=1.15.1",
 ]
 
 sentinel = [
     "python-dateutil>=2.9.0",
-    "scipy>=1.15.1",
     "tifffile>=2025.5.10",
 ]
 
