@@ -23,6 +23,7 @@ dynamic = ["version"]
 dependencies = [
     "lxml>=5.1.0",
     "numpy>=1.26.3",
+    "pyproj>=3.7.2",
     "sarkit[verification]>=0.10.0",
     "scipy>=1.15.1",
 ]
@@ -57,18 +58,6 @@ all = [
     "sarkit-convert[sentinel]",
 ]
 
-dev-lint = [
-    "ruff>=0.3.0",
-    "mypy>=1.8.0",
-    "types-python-dateutil>=2.9.0",
-]
-dev-test = [
-    "pytest>=7.4.4",
-]
-dev = [
-    "sarkit-convert[dev-test,dev-lint]",
-]
-
 [dependency-groups]
 test = [
     "nox>=2024.3.2",
@@ -79,6 +68,17 @@ doc = [
     "sphinx-rtd-theme>=2.0.0",
     "sphinxcontrib-autoprogram>=0.1.9",
 ]
+dev-lint = [
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+    "types-python-dateutil>=2.9.0",
+]
+dev-test = [
+    "pytest>=7.4.4",
+    "smart-open[http]>=7.5",
+    "tifffile>=2025.5.10",
+]
+
 
 [build-system]
 requires = ["pdm-backend"]
@@ -111,6 +111,7 @@ module = [
     "astropy.*",
     "h5py.*",
     "lxml.*",
+    "pyproj.*",
     "scipy.*",
     "shapely.*",
 ]
