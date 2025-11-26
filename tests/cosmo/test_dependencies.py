@@ -2,7 +2,7 @@ import importlib
 import unittest
 
 MODULES = [
-    "sarkit_convert.csk",
+    "sarkit_convert.cosmo",
 ]
 
 
