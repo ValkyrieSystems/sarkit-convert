@@ -1161,8 +1161,11 @@ def _complete_filename(swath_info, burst_info, filename_template):
 def _create_sicd_xml(base_info, swath_info, burst_info, classification):
     em = lxml.builder.ElementMaker(namespace=NSMAP["sicd"], nsmap={None: NSMAP["sicd"]})
 
+    sicd_xml_obj = em.SICD()
+    sicd_ew = sksicd.ElementWrapper(sicd_xml_obj)
+
     # Collection Info
-    collection_info_node = em.CollectionInfo(
+    sicd_ew["CollectionInfo"] = em.CollectionInfo(
         em.CollectorName(swath_info["collector_name"]),
         em.CoreName(burst_info["core_name"]),
         em.CollectType(base_info["collect_type"]),
@@ -1197,13 +1200,13 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
     )
 
     # Image Creation
-    image_creation_node = em.ImageCreation(
+    sicd_ew["ImageCreation"] = em.ImageCreation(
         em.Application(base_info["creation_application"]),
         em.DateTime(base_info["creation_date_time"].strftime("%Y-%m-%dT%H:%M:%SZ")),
     )
 
     # Image Data
-    image_data_node = em.ImageData(
+    sicd_ew["ImageData"] = em.ImageData(
         em.PixelType(swath_info["pixel_type"]),
         em.NumRows(str(swath_info["num_rows"])),
         em.NumCols(str(swath_info["num_cols"])),
@@ -1249,7 +1252,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         return [em.Lat(str(arr[0])), em.Lon(str(arr[1])), em.HAE(str(arr[2]))]
 
     # Geo Data
-    geo_data_node = em.GeoData(
+    sicd_ew["GeoData"] = em.GeoData(
         em.EarthModel("WGS_84"),
         em.SCP(
             em.ECF(*_make_xyz(burst_info["scp_ecf"])),
@@ -1260,7 +1263,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
     )
 
     # Grid
-    grid_node = em.Grid(
+    sicd_ew["Grid"] = em.Grid(
         em.ImagePlane(swath_info["image_plane"]),
         em.Type(swath_info["grid_type"]),
         em.TimeCOAPoly(),
@@ -1317,24 +1320,14 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
             ),
         ),
     )
-    sksicd.Poly2dType().set_elem(
-        grid_node.find("./{*}TimeCOAPoly"), burst_info["time_coa_poly_coefs"]
-    )
-    sksicd.Poly2dType().set_elem(
-        grid_node.find("./{*}Row/{*}DeltaKCOAPoly"), swath_info["row_deltak_coa_poly"]
-    )
-    sksicd.Poly2dType().set_elem(
-        grid_node.find("./{*}Col/{*}DeltaKCOAPoly"), burst_info["col_deltak_coa_poly"]
-    )
-    wgtfunc = em.WgtFunct()
-    sksicd.TRANSCODERS["Grid/Row/WgtFunct"].set_elem(wgtfunc, swath_info["row_wgts"])
-    grid_node.find("./{*}Row").append(wgtfunc)
-    wgtfunc = em.WgtFunct()
-    sksicd.TRANSCODERS["Grid/Col/WgtFunct"].set_elem(wgtfunc, swath_info["col_wgts"])
-    grid_node.find("./{*}Col").append(wgtfunc)
+    sicd_ew["Grid"]["TimeCOAPoly"] = burst_info["time_coa_poly_coefs"]
+    sicd_ew["Grid"]["Row"]["DeltaKCOAPoly"] = swath_info["row_deltak_coa_poly"]
+    sicd_ew["Grid"]["Col"]["DeltaKCOAPoly"] = burst_info["col_deltak_coa_poly"]
+    sicd_ew["Grid"]["Row"]["WgtFunct"] = swath_info["row_wgts"]
+    sicd_ew["Grid"]["Col"]["WgtFunct"] = swath_info["col_wgts"]
 
     # Timeline
-    timeline_node = em.Timeline(
+    sicd_ew["Timeline"] = em.Timeline(
         em.CollectStart(burst_info["collect_start"].strftime("%Y-%m-%dT%H:%M:%S.%fZ")),
         em.CollectDuration(str(burst_info["collect_duration"])),
         em.IPP(
@@ -1349,18 +1342,13 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
             ),
         ),
     )
-    sksicd.PolyType().set_elem(
-        timeline_node.find("./{*}IPP/{*}Set/{*}IPPPoly"), swath_info["ipp_poly"]
-    )
+    sicd_ew["Timeline"]["IPP"]["Set"][0]["IPPPoly"] = swath_info["ipp_poly"]
 
     # Position
-    position_node = em.Position(em.ARPPoly())
-    sksicd.XyzPolyType().set_elem(
-        position_node.find("./{*}ARPPoly"), burst_info["arp_poly_coefs"]
-    )
+    sicd_ew["Position"]["ARPPoly"] = burst_info["arp_poly_coefs"]
 
     # Radar Collection
-    radar_collection_node = em.RadarCollection(
+    sicd_ew["RadarCollection"] = em.RadarCollection(
         em.TxFrequency(
             em.Min(str(swath_info["tx_freq"][0])),
             em.Max(str(swath_info["tx_freq"][1])),
@@ -1404,7 +1392,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         .isoformat(timespec="microseconds")
         .replace("+00:00", "Z")
     )
-    image_formation_node = em.ImageFormation(
+    sicd_ew["ImageFormation"] = em.ImageFormation(
         em.RcvChanProc(
             em.NumChanProc("1"),
             em.PRFScaleFactor("1"),
@@ -1429,7 +1417,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
     )
 
     # RMA
-    rma_node = em.RMA(
+    sicd_ew["RMA"] = em.RMA(
         em.RMAlgoType(swath_info["rm_algo_type"]),
         em.ImageType(swath_info["image_type"]),
         em.INCA(
@@ -1441,65 +1429,33 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
             em.DopCentroidCOA(swath_info["dop_centroid_coa"]),
         ),
     )
-    sksicd.PolyType().set_elem(
-        rma_node.find("./{*}INCA/{*}TimeCAPoly"), burst_info["time_ca_poly_coefs"]
-    )
-    sksicd.Poly2dType().set_elem(
-        rma_node.find("./{*}INCA/{*}DRateSFPoly"), burst_info["drsf_poly_coefs"]
-    )
-    sksicd.Poly2dType().set_elem(
-        rma_node.find("./{*}INCA/{*}DopCentroidPoly"),
-        burst_info["doppler_centroid_poly_coefs"],
-    )
-
-    sicd_xml_obj = em.SICD(
-        collection_info_node,
-        image_creation_node,
-        image_data_node,
-        geo_data_node,
-        grid_node,
-        timeline_node,
-        position_node,
-        radar_collection_node,
-        image_formation_node,
-        rma_node,
-    )
+    sicd_ew["RMA"]["INCA"]["TimeCAPoly"] = burst_info["time_ca_poly_coefs"]
+    sicd_ew["RMA"]["INCA"]["DRateSFPoly"] = burst_info["drsf_poly_coefs"]
+    sicd_ew["RMA"]["INCA"]["DopCentroidPoly"] = burst_info[
+        "doppler_centroid_poly_coefs"
+    ]
 
     # Add Radiometric after Sentinel baseline processing calibration update on 25 Nov 2015.
     if "radiometric" in burst_info:
         # Radiometric
-        radiometric_node = em.Radiometric(
-            em.NoiseLevel(
-                em.NoiseLevelType(burst_info["radiometric"]["noise_level_type"]),
-                em.NoisePoly(),
-            ),
-            em.RCSSFPoly(),
-            em.SigmaZeroSFPoly(),
-            em.BetaZeroSFPoly(),
-            em.GammaZeroSFPoly(),
-        )
-        sksicd.Poly2dType().set_elem(
-            radiometric_node.find("./{*}NoiseLevel/{*}NoisePoly"),
-            burst_info["radiometric"]["noise_poly_coefs"],
-        )
-        sksicd.Poly2dType().set_elem(
-            radiometric_node.find("./{*}RCSSFPoly"),
-            burst_info["radiometric"]["rcs_sf_poly_coefs"],
-        )
-        sksicd.Poly2dType().set_elem(
-            radiometric_node.find("./{*}SigmaZeroSFPoly"),
-            burst_info["radiometric"]["sigma_zero_poly_coefs"],
-        )
-        sksicd.Poly2dType().set_elem(
-            radiometric_node.find("./{*}BetaZeroSFPoly"),
-            burst_info["radiometric"]["beta_zero_poly_coefs"],
-        )
-        sksicd.Poly2dType().set_elem(
-            radiometric_node.find("./{*}GammaZeroSFPoly"),
-            burst_info["radiometric"]["gamma_zero_poly_coefs"],
-        )
-
-        sicd_xml_obj.find("{*}RMA").addprevious(radiometric_node)
+        sicd_ew["Radiometric"]["NoiseLevel"]["NoiseLevelType"] = burst_info[
+            "radiometric"
+        ]["noise_level_type"]
+        sicd_ew["Radiometric"]["NoiseLevel"]["NoisePoly"] = burst_info["radiometric"][
+            "noise_poly_coefs"
+        ]
+        sicd_ew["Radiometric"]["RCSSFPoly"] = burst_info["radiometric"][
+            "rcs_sf_poly_coefs"
+        ]
+        sicd_ew["Radiometric"]["SigmaZeroSFPoly"] = burst_info["radiometric"][
+            "sigma_zero_poly_coefs"
+        ]
+        sicd_ew["Radiometric"]["BetaZeroSFPoly"] = burst_info["radiometric"][
+            "beta_zero_poly_coefs"
+        ]
+        sicd_ew["Radiometric"]["GammaZeroSFPoly"] = burst_info["radiometric"][
+            "gamma_zero_poly_coefs"
+        ]
 
     return sicd_xml_obj
 

@@ -565,18 +565,21 @@ def hdf5_to_sicd(
     sicd = lxml.builder.ElementMaker(
         namespace=NSMAP["sicd"], nsmap={None: NSMAP["sicd"]}
     )
-    collection_info = sicd.CollectionInfo(
+    sicd_xml_obj = sicd.SICD()
+    sicd_ew = sksicd.ElementWrapper(sicd_xml_obj)
+
+    sicd_ew["CollectionInfo"] = sicd.CollectionInfo(
         sicd.CollectorName(collector_name),
         sicd.CoreName(core_name),
         sicd.CollectType("MONOSTATIC"),
         sicd.RadarMode(sicd.ModeType(radar_mode_type), sicd.ModeID(radar_mode_id)),
         sicd.Classification(classification),
     )
-    image_creation = sicd.ImageCreation(
+    sicd_ew["ImageCreation"] = sicd.ImageCreation(
         sicd.Application(creation_application),
         sicd.DateTime(creation_time.isoformat() + "Z"),
     )
-    image_data = sicd.ImageData(
+    sicd_ew["ImageData"] = sicd.ImageData(
         sicd.PixelType(pixel_type),
         sicd.NumRows(str(num_rows)),
         sicd.NumCols(str(num_cols)),
@@ -596,7 +599,7 @@ def hdf5_to_sicd(
         return [sicd.Lat(str(arr[0])), sicd.Lon(str(arr[1]))]
 
     # Placeholder locations
-    geo_data = sicd.GeoData(
+    sicd_ew["GeoData"] = sicd.GeoData(
         sicd.EarthModel("WGS_84"),
         sicd.SCP(sicd.ECF(*make_xyz(scp_ecf)), sicd.LLH(*make_llh(scp_llh))),
         sicd.ImageCorners(
@@ -630,7 +633,7 @@ def hdf5_to_sicd(
     col_window_name = h5_attrs["Azimuth Focusing Weighting Function"]
     col_window_coeff = h5_attrs["Azimuth Focusing Weighting Coefficient"]
 
-    grid = sicd.Grid(
+    sicd_ew["Grid"] = sicd.Grid(
         sicd.ImagePlane("SLANT"),
         sicd.Type("RGZERO"),
         sicd.TimeCOAPoly(),
@@ -665,33 +668,27 @@ def hdf5_to_sicd(
             ),
         ),
     )
-    sksicd.Poly2dType().set_elem(grid.find("./{*}TimeCOAPoly"), time_coa_poly)
-    sksicd.Poly2dType().set_elem(grid.find("./{*}Row/{*}DeltaKCOAPoly"), [[0]])
-    sksicd.Poly2dType().set_elem(
-        grid.find("./{*}Col/{*}DeltaKCOAPoly"), col_deltakcoa_poly
-    )
+    sicd_ew["Grid"]["TimeCOAPoly"] = time_coa_poly
+    sicd_ew["Grid"]["Row"]["DeltaKCOAPoly"] = [[0]]
+    sicd_ew["Grid"]["Col"]["DeltaKCOAPoly"] = col_deltakcoa_poly
     rcs_row_sf = None
     rcs_col_sf = None
     if row_window_name == "HAMMING":
         wgts = scipy.signal.windows.general_hamming(512, row_window_coeff, sym=True)
-        wgtfunc = sicd.WgtFunct()
-        sksicd.TRANSCODERS["Grid/Row/WgtFunct"].set_elem(wgtfunc, wgts)
-        grid.find("./{*}Row").append(wgtfunc)
+        sicd_ew["Grid"]["Row"]["WgtFunct"] = wgts
         row_broadening_factor = utils.broadening_from_amp(wgts)
         row_wid = row_broadening_factor / row_bw
-        sksicd.DblType().set_elem(grid.find("./{*}Row/{*}ImpRespWid"), row_wid)
+        sicd_ew["Grid"]["Row"]["ImpRespWid"] = row_wid
         rcs_row_sf = 1 + np.var(wgts) / np.mean(wgts) ** 2
     if col_window_name == "HAMMING":
         wgts = scipy.signal.windows.general_hamming(512, col_window_coeff, sym=True)
-        wgtfunc = sicd.WgtFunct()
-        sksicd.TRANSCODERS["Grid/Col/WgtFunct"].set_elem(wgtfunc, wgts)
-        grid.find("./{*}Col").append(wgtfunc)
+        sicd_ew["Grid"]["Col"]["WgtFunct"] = wgts
         col_broadening_factor = utils.broadening_from_amp(wgts)
         col_wid = col_broadening_factor / col_bw
-        sksicd.DblType().set_elem(grid.find("./{*}Col/{*}ImpRespWid"), col_wid)
+        sicd_ew["Grid"]["Col"]["ImpRespWid"] = col_wid
         rcs_col_sf = 1 + np.var(wgts) / np.mean(wgts) ** 2
 
-    timeline = sicd.Timeline(
+    sicd_ew["Timeline"] = sicd.Timeline(
         sicd.CollectStart(collection_start_time.isoformat() + "Z"),
         sicd.CollectDuration(str(collection_duration)),
         sicd.IPP(
@@ -706,10 +703,9 @@ def hdf5_to_sicd(
             ),
         ),
     )
-    sksicd.PolyType().set_elem(timeline.find("./{*}IPP/{*}Set/{*}IPPPoly"), [0, prf])
+    sicd_ew["Timeline"]["IPP"]["Set"][0]["IPPPoly"] = [0, prf]
 
-    position = sicd.Position(sicd.ARPPoly())
-    sksicd.XyzPolyType().set_elem(position.find("./{*}ARPPoly"), apc_poly)
+    sicd_ew["Position"]["ARPPoly"] = apc_poly
 
     rcv_channels = sicd.RcvChannels(
         {"size": str(len(tx_rcv_pols))},
@@ -721,7 +717,7 @@ def hdf5_to_sicd(
             )
         )
 
-    radar_collection = sicd.RadarCollection(
+    sicd_ew["RadarCollection"] = sicd.RadarCollection(
         sicd.TxFrequency(sicd.Min(str(tx_freq_min)), sicd.Max(str(tx_freq_max))),
         sicd.Waveform(
             {"size": "1"},
@@ -739,7 +735,7 @@ def hdf5_to_sicd(
         rcv_channels,
     )
     if len(tx_polarizations) > 1:
-        radar_collection.find("./{*}TxPolarization").text = "SEQUENCE"
+        sicd_ew["RadarCollection"]["TxPolarization"] = "SEQUENCE"
         tx_sequence = sicd.TxSequence({"size": str(len(tx_polarizations))})
         for ndx, tx_pol in enumerate(tx_polarizations):
             tx_sequence.append(
@@ -752,7 +748,7 @@ def hdf5_to_sicd(
         .isoformat(timespec="microseconds")
         .replace("+00:00", "Z")
     )
-    image_formation = sicd.ImageFormation(
+    sicd_ew["ImageFormation"] = sicd.ImageFormation(
         sicd.RcvChanProc(sicd.NumChanProc("1"), sicd.ChanIndex(str(chan_index))),
         sicd.TxRcvPolarizationProc(tx_rcv_polarization),
         sicd.TStartProc(str(0)),
@@ -771,42 +767,17 @@ def hdf5_to_sicd(
         ),
     )
 
-    antenna = sicd.Antenna(
-        sicd.TwoWay(
-            sicd.XAxisPoly(),
-            sicd.YAxisPoly(),
-            sicd.FreqZero(str(freq_zero)),
-            sicd.EB(
-                sicd.DCXPoly(),
-                sicd.DCYPoly(),
-            ),
-            sicd.Array(
-                sicd.GainPoly(),
-                sicd.PhasePoly(),
-            ),
-        ),
-    )
-    sksicd.XyzPolyType().set_elem(
-        antenna.find("./{*}TwoWay/{*}XAxisPoly"), ant_x_dir_poly
-    )
-    sksicd.XyzPolyType().set_elem(
-        antenna.find("./{*}TwoWay/{*}YAxisPoly"), ant_y_dir_poly
-    )
-    sksicd.PolyType().set_elem(
-        antenna.find("./{*}TwoWay/{*}EB/{*}DCXPoly"), eb_dcx_poly
-    )
-    sksicd.PolyType().set_elem(
-        antenna.find("./{*}TwoWay/{*}EB/{*}DCYPoly"), eb_dcy_poly
-    )
-    sksicd.Poly2dType().set_elem(
-        antenna.find("./{*}TwoWay/{*}Array/{*}GainPoly"), antenna_array_gain
-    )
-    sksicd.Poly2dType().set_elem(
-        antenna.find("./{*}TwoWay/{*}Array/{*}PhasePoly"),
-        np.zeros(dtype=float, shape=(1, 1)),
+    sicd_ew["Antenna"]["TwoWay"]["XAxisPoly"] = ant_x_dir_poly
+    sicd_ew["Antenna"]["TwoWay"]["YAxisPoly"] = ant_y_dir_poly
+    sicd_ew["Antenna"]["TwoWay"]["FreqZero"] = freq_zero
+    sicd_ew["Antenna"]["TwoWay"]["EB"]["DCXPoly"] = eb_dcx_poly
+    sicd_ew["Antenna"]["TwoWay"]["EB"]["DCYPoly"] = eb_dcy_poly
+    sicd_ew["Antenna"]["TwoWay"]["Array"]["GainPoly"] = antenna_array_gain
+    sicd_ew["Antenna"]["TwoWay"]["Array"]["PhasePoly"] = np.zeros(
+        dtype=float, shape=(1, 1)
     )
 
-    rma = sicd.RMA(
+    sicd_ew["RMA"] = sicd.RMA(
         sicd.RMAlgoType("OMEGA_K"),
         sicd.ImageType("INCA"),
         sicd.INCA(
@@ -817,26 +788,11 @@ def hdf5_to_sicd(
             sicd.DopCentroidPoly(),
         ),
     )
-    sksicd.PolyType().set_elem(rma.find("./{*}INCA/{*}TimeCAPoly"), time_ca_poly)
-    sksicd.Poly2dType().set_elem(rma.find("./{*}INCA/{*}DRateSFPoly"), drsf_poly)
-    sksicd.Poly2dType().set_elem(
-        rma.find("./{*}INCA/{*}DopCentroidPoly"), doppler_centroid_poly
-    )
-    sicd_xml_obj = sicd.SICD(
-        collection_info,
-        image_creation,
-        image_data,
-        geo_data,
-        grid,
-        timeline,
-        position,
-        radar_collection,
-        image_formation,
-        antenna,
-        rma,
-    )
+    sicd_ew["RMA"]["INCA"]["TimeCAPoly"] = time_ca_poly
+    sicd_ew["RMA"]["INCA"]["DRateSFPoly"] = drsf_poly
+    sicd_ew["RMA"]["INCA"]["DopCentroidPoly"] = doppler_centroid_poly
 
-    image_formation.addnext(sksicd.compute_scp_coa(sicd_xml_obj.getroottree()))
+    sicd_ew["SCPCOA"] = sksicd.compute_scp_coa(sicd_xml_obj.getroottree())
 
     # Add Radiometric
     if mission_id == "CSK":
