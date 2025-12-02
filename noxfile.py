@@ -35,14 +35,8 @@ def test(session):
     for next_session in (
         "test_core",
         "test_core_dependencies",
-        "test_iceye",
-        "test_iceye_dependencies",
-        "test_cosmo",
-        "test_cosmo_dependencies",
-        "test_tsx",
-        "test_tsx_dependencies",
-        "test_sentinel",
-        "test_sentinel_dependencies",
+        "test_extra",
+        "test_extra_dependencies",
     ):
         session.notify(next_session)
 
@@ -68,101 +62,31 @@ def test_core_dependencies(session):
     session.run("python", "tests/core/test_dependencies.py")
 
 
+EXTRAS_TO_TEST = ["cosmo", "iceye", "sentinel", "terrasar"]
+
+
 @nox.session
-def test_iceye(session):
+@nox.parametrize("name", EXTRAS_TO_TEST)
+def test_extra(session, name):
     session.run_install(
         "pdm",
         "sync",
         "-G",
-        "iceye",
+        name,
         external=True,
     )
-    session.run("pytest", "tests/iceye")
+    session.run("pytest", f"tests/{name}")
 
 
 @nox.session
-def test_iceye_dependencies(session):
-    session.run_install(
-        "pdm",
-        "sync",
-        "--prod",
-        "-G",
-        "iceye",
-        external=True,
-    )
-    session.run("python", "tests/iceye/test_dependencies.py")
-
-
-@nox.session
-def test_cosmo(session):
-    session.run_install(
-        "pdm",
-        "sync",
-        "-G",
-        "cosmo",
-        external=True,
-    )
-    session.run("pytest", "tests/cosmo")
-
-
-@nox.session
-def test_cosmo_dependencies(session):
+@nox.parametrize("name", EXTRAS_TO_TEST)
+def test_extra_dependencies(session, name):
     session.run_install(
         "pdm",
         "sync",
         "--prod",
         "-G",
-        "cosmo",
+        name,
         external=True,
     )
-    session.run("python", "tests/cosmo/test_dependencies.py")
-
-
-@nox.session
-def test_tsx(session):
-    session.run_install(
-        "pdm",
-        "sync",
-        "-G",
-        "tsx",
-        external=True,
-    )
-    session.run("pytest", "tests/tsx")
-
-
-@nox.session
-def test_tsx_dependencies(session):
-    session.run_install(
-        "pdm",
-        "sync",
-        "--prod",
-        "-G",
-        "tsx",
-        external=True,
-    )
-    session.run("python", "tests/tsx/test_dependencies.py")
-
-
-@nox.session
-def test_sentinel(session):
-    session.run_install(
-        "pdm",
-        "sync",
-        "-G",
-        "sentinel",
-        external=True,
-    )
-    session.run("pytest", "tests/sentinel")
-
-
-@nox.session
-def test_sentinel_dependencies(session):
-    session.run_install(
-        "pdm",
-        "sync",
-        "--prod",
-        "-G",
-        "sentinel",
-        external=True,
-    )
-    session.run("python", "tests/sentinel/test_dependencies.py")
+    session.run("python", f"tests/{name}/test_dependencies.py")

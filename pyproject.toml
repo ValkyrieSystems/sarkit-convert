@@ -41,7 +41,7 @@ cosmo = [
     "shapely>=2.0.2",
 ]
 
-tsx = [
+terrasar = [
     "python-dateutil>=2.9.0",
 ]
 
@@ -53,7 +53,7 @@ sentinel = [
 all = [
     "sarkit-convert[iceye]",
     "sarkit-convert[cosmo]",
-    "sarkit-convert[tsx]",
+    "sarkit-convert[terrasar]",
     "sarkit-convert[sentinel]",
 ]
 
