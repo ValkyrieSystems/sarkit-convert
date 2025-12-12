@@ -943,15 +943,15 @@ def _calc_radiometric_info(cal_file_name, swath_info, burst_info_list):
     gamma = 1.0 / (gamma * gamma)
 
     for idx, burst_info in enumerate(burst_info_list):
-        valid_lines = (line >= idx * lines_per_burst) & (
-            line < (idx + 1) * lines_per_burst
-        )
+        burst_first_line = idx * lines_per_burst
+        burst_last_line = burst_first_line + lines_per_burst
+        valid_lines = (line >= burst_first_line) & (line < burst_last_line)
         valid_count = np.sum(valid_lines)
         if valid_count == 0:
             # this burst contained no useful calibration data
             return
 
-        poly_order = 4
+        max_poly_order = 4
         first_row = swath_info["first_row"]
         first_col = swath_info["first_col"]
         scp_row = swath_info["scp_pixel"][0]
@@ -959,35 +959,45 @@ def _calc_radiometric_info(cal_file_name, swath_info, burst_info_list):
         row_ss = swath_info["row_ss"]
         col_ss = swath_info["col_ss"]
         coords_rg = (pixel[valid_lines] + first_row - scp_row) * row_ss
-        coords_az = (line[valid_lines] + first_col - scp_col) * col_ss
+        coords_az = (
+            line[valid_lines] + first_col - scp_col - burst_first_line
+        ) * col_ss
         # NB: coords_rg = (valid_count, M) and coords_az = (valid_count, )
         coords_az = np.repeat(coords_az, pixel.shape[1])
         if valid_count > 1:
             coords_az = coords_az.reshape((valid_count, -1))
+        max_poly_order_rg = min(max_poly_order, len(coords_rg) - 1)
+        max_poly_order_az = min(max_poly_order, len(coords_az) - 1)
 
+        sigma_vals = sigma[valid_lines, :].flatten()
+        sigma_tol = np.maximum(np.std(sigma_vals) * 1e-1, np.mean(sigma_vals) * 1e-2)
         burst_info["radiometric"]["sigma_zero_poly_coefs"] = utils.polyfit2d_tol(
             coords_rg.flatten(),
             coords_az.flatten(),
-            sigma[valid_lines, :].flatten(),
-            poly_order,
-            poly_order,
-            1e-2,
+            sigma_vals,
+            max_poly_order_rg,
+            max_poly_order_az,
+            sigma_tol,
         )
+        beta_vals = beta[valid_lines, :].flatten()
+        beta_tol = np.maximum(np.std(beta_vals) * 1e-1, np.mean(beta_vals) * 1e-2)
         burst_info["radiometric"]["beta_zero_poly_coefs"] = utils.polyfit2d_tol(
             coords_rg.flatten(),
             coords_az.flatten(),
-            beta[valid_lines, :].flatten(),
-            poly_order,
-            poly_order,
-            1e-2,
+            beta_vals,
+            max_poly_order_rg,
+            max_poly_order_az,
+            beta_tol,
         )
+        gamma_vals = gamma[valid_lines, :].flatten()
+        gamma_tol = np.maximum(np.std(gamma_vals) * 1e-1, np.mean(gamma_vals) * 1e-2)
         burst_info["radiometric"]["gamma_zero_poly_coefs"] = utils.polyfit2d_tol(
             coords_rg.flatten(),
             coords_az.flatten(),
-            gamma[valid_lines, :].flatten(),
-            poly_order,
-            poly_order,
-            1e-2,
+            gamma_vals,
+            max_poly_order_rg,
+            max_poly_order_az,
+            gamma_tol,
         )
 
         range_weight_f = azimuth_weight_f = 1.0
