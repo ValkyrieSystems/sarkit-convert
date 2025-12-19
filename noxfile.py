@@ -30,15 +30,16 @@ def lint(session):
     session.run("mypy", pathlib.Path(__file__).parent / "sarkit_convert")
 
 
-@nox.session
-def test(session):
-    for next_session in (
+@nox.session(
+    requires=[
         "test_core",
         "test_core_dependencies",
         "test_extra",
         "test_extra_dependencies",
-    ):
-        session.notify(next_session)
+    ]
+)
+def test(session):
+    """Run the required tests"""
 
 
 @nox.session

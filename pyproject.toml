@@ -59,7 +59,7 @@ all = [
 
 [dependency-groups]
 test = [
-    "nox>=2024.3.2",
+    "nox>=2025.2.9",
 ]
 doc = [
     "sphinx>=7.2.6",
