@@ -2,7 +2,7 @@ import importlib
 import unittest
 
 MODULES = [
-    "sarkit_convert.tsx",
+    "sarkit_convert.terrasar",
 ]
 
 
