@@ -25,7 +25,7 @@ import astropy.units as apu
 import astropy.utils
 import dateutil.parser
 import h5py
-import lxml.builder
+import lxml.etree
 import numpy as np
 import numpy.linalg as npl
 import numpy.polynomial.polynomial as npp
@@ -562,53 +562,45 @@ def hdf5_to_sicd(
     antenna_array_gain[0, 0] = 0.0
 
     # Build XML
-    sicd = lxml.builder.ElementMaker(
-        namespace=NSMAP["sicd"], nsmap={None: NSMAP["sicd"]}
+    sicd_xml_obj = lxml.etree.Element(
+        f"{{{NSMAP['sicd']}}}SICD", nsmap={None: NSMAP["sicd"]}
     )
-    sicd_xml_obj = sicd.SICD()
     sicd_ew = sksicd.ElementWrapper(sicd_xml_obj)
 
-    sicd_ew["CollectionInfo"] = sicd.CollectionInfo(
-        sicd.CollectorName(collector_name),
-        sicd.CoreName(core_name),
-        sicd.CollectType("MONOSTATIC"),
-        sicd.RadarMode(sicd.ModeType(radar_mode_type), sicd.ModeID(radar_mode_id)),
-        sicd.Classification(classification),
-    )
-    sicd_ew["ImageCreation"] = sicd.ImageCreation(
-        sicd.Application(creation_application),
-        sicd.DateTime(creation_time.isoformat() + "Z"),
-    )
-    sicd_ew["ImageData"] = sicd.ImageData(
-        sicd.PixelType(pixel_type),
-        sicd.NumRows(str(num_rows)),
-        sicd.NumCols(str(num_cols)),
-        sicd.FirstRow(str(first_row)),
-        sicd.FirstCol(str(first_col)),
-        sicd.FullImage(sicd.NumRows(str(num_rows)), sicd.NumCols(str(num_cols))),
-        sicd.SCPPixel(sicd.Row(str(scp_pixel[0])), sicd.Col(str(scp_pixel[1]))),
-    )
+    sicd_ew["CollectionInfo"] = {
+        "CollectorName": collector_name,
+        "CoreName": core_name,
+        "CollectType": "MONOSTATIC",
+        "RadarMode": {
+            "ModeType": radar_mode_type,
+            "ModeID": radar_mode_id,
+        },
+        "Classification": classification,
+    }
+    sicd_ew["ImageCreation"] = {
+        "Application": creation_application,
+        "DateTime": creation_time,
+    }
+    sicd_ew["ImageData"] = {
+        "PixelType": pixel_type,
+        "NumRows": num_rows,
+        "NumCols": num_cols,
+        "FirstRow": first_row,
+        "FirstCol": first_col,
+        "FullImage": {
+            "NumRows": num_rows,
+            "NumCols": num_cols,
+        },
+        "SCPPixel": scp_pixel,
+    }
 
-    def make_xyz(arr):
-        return [sicd.X(str(arr[0])), sicd.Y(str(arr[1])), sicd.Z(str(arr[2]))]
-
-    def make_llh(arr):
-        return [sicd.Lat(str(arr[0])), sicd.Lon(str(arr[1])), sicd.HAE(str(arr[2]))]
-
-    def make_ll(arr):
-        return [sicd.Lat(str(arr[0])), sicd.Lon(str(arr[1]))]
-
-    # Placeholder locations
-    sicd_ew["GeoData"] = sicd.GeoData(
-        sicd.EarthModel("WGS_84"),
-        sicd.SCP(sicd.ECF(*make_xyz(scp_ecf)), sicd.LLH(*make_llh(scp_llh))),
-        sicd.ImageCorners(
-            sicd.ICP({"index": "1:FRFC"}, *make_ll([0, 0])),
-            sicd.ICP({"index": "2:FRLC"}, *make_ll([0, 0])),
-            sicd.ICP({"index": "3:LRLC"}, *make_ll([0, 0])),
-            sicd.ICP({"index": "4:LRFC"}, *make_ll([0, 0])),
-        ),
-    )
+    sicd_ew["GeoData"] = {
+        "EarthModel": "WGS_84",
+        "SCP": {
+            "ECF": scp_ecf,
+            "LLH": scp_llh,
+        },
+    }
 
     dc_sgn = np.sign(-doppler_rate_poly[0, 0])
     col_deltakcoa_poly = (
@@ -633,44 +625,41 @@ def hdf5_to_sicd(
     col_window_name = h5_attrs["Azimuth Focusing Weighting Function"]
     col_window_coeff = h5_attrs["Azimuth Focusing Weighting Coefficient"]
 
-    sicd_ew["Grid"] = sicd.Grid(
-        sicd.ImagePlane("SLANT"),
-        sicd.Type("RGZERO"),
-        sicd.TimeCOAPoly(),
-        sicd.Row(
-            sicd.UVectECF(*make_xyz(u_row)),
-            sicd.SS(str(spacings[0])),
-            sicd.ImpRespWid(str(row_wid)),
-            sicd.Sgn("-1"),
-            sicd.ImpRespBW(str(row_bw)),
-            sicd.KCtr(str(center_frequency / (scipy.constants.speed_of_light / 2))),
-            sicd.DeltaK1(str(-row_bw / 2)),
-            sicd.DeltaK2(str(row_bw / 2)),
-            sicd.DeltaKCOAPoly(),
-            sicd.WgtType(
-                sicd.WindowName(row_window_name),
-                sicd.Parameter({"name": "COEFFICIENT"}, str(row_window_coeff)),
-            ),
-        ),
-        sicd.Col(
-            sicd.UVectECF(*make_xyz(u_col)),
-            sicd.SS(str(spacings[1])),
-            sicd.ImpRespWid(str(col_wid)),
-            sicd.Sgn("-1"),
-            sicd.ImpRespBW(str(col_bw)),
-            sicd.KCtr("0"),
-            sicd.DeltaK1(str(dk1)),
-            sicd.DeltaK2(str(dk2)),
-            sicd.DeltaKCOAPoly(),
-            sicd.WgtType(
-                sicd.WindowName(col_window_name),
-                sicd.Parameter({"name": "COEFFICIENT"}, str(col_window_coeff)),
-            ),
-        ),
-    )
-    sicd_ew["Grid"]["TimeCOAPoly"] = time_coa_poly
-    sicd_ew["Grid"]["Row"]["DeltaKCOAPoly"] = [[0]]
-    sicd_ew["Grid"]["Col"]["DeltaKCOAPoly"] = col_deltakcoa_poly
+    sicd_ew["Grid"] = {
+        "ImagePlane": "SLANT",
+        "Type": "RGZERO",
+        "TimeCOAPoly": time_coa_poly,
+        "Row": {
+            "UVectECF": u_row,
+            "SS": spacings[0],
+            "ImpRespWid": row_wid,
+            "Sgn": -1,
+            "ImpRespBW": row_bw,
+            "KCtr": center_frequency / (scipy.constants.speed_of_light / 2),
+            "DeltaK1": -row_bw / 2,
+            "DeltaK2": row_bw / 2,
+            "DeltaKCOAPoly": [[0.0]],
+            "WgtType": {
+                "WindowName": row_window_name,
+                "Parameter": [("COEFFICIENT", str(row_window_coeff))],
+            },
+        },
+        "Col": {
+            "UVectECF": u_col,
+            "SS": spacings[1],
+            "ImpRespWid": col_wid,
+            "Sgn": -1,
+            "ImpRespBW": col_bw,
+            "KCtr": 0.0,
+            "DeltaK1": dk1,
+            "DeltaK2": dk2,
+            "DeltaKCOAPoly": col_deltakcoa_poly,
+            "WgtType": {
+                "WindowName": col_window_name,
+                "Parameter": [("COEFFICIENT", str(col_window_coeff))],
+            },
+        },
+    }
     rcs_row_sf = None
     rcs_col_sf = None
     if row_window_name == "HAMMING":
@@ -688,84 +677,104 @@ def hdf5_to_sicd(
         sicd_ew["Grid"]["Col"]["ImpRespWid"] = col_wid
         rcs_col_sf = 1 + np.var(wgts) / np.mean(wgts) ** 2
 
-    sicd_ew["Timeline"] = sicd.Timeline(
-        sicd.CollectStart(collection_start_time.isoformat() + "Z"),
-        sicd.CollectDuration(str(collection_duration)),
-        sicd.IPP(
-            {"size": "1"},
-            sicd.Set(
-                {"index": "1"},
-                sicd.TStart(str(0)),
-                sicd.TEnd(str(num_pulses / prf)),
-                sicd.IPPStart(str(0)),
-                sicd.IPPEnd(str(num_pulses - 1)),
-                sicd.IPPPoly(),
-            ),
-        ),
-    )
-    sicd_ew["Timeline"]["IPP"]["Set"][0]["IPPPoly"] = [0, prf]
+    sicd_ew["Timeline"] = {
+        "CollectStart": collection_start_time,
+        "CollectDuration": collection_duration,
+        "IPP": {
+            "@size": 1,
+            "Set": [
+                {
+                    "@index": 1,
+                    "TStart": 0,
+                    "TEnd": num_pulses / prf,
+                    "IPPStart": 0,
+                    "IPPEnd": num_pulses - 1,
+                    "IPPPoly": [0, prf],
+                }
+            ],
+        },
+    }
 
     sicd_ew["Position"]["ARPPoly"] = apc_poly
 
-    rcv_channels = sicd.RcvChannels(
-        {"size": str(len(tx_rcv_pols))},
-    )
+    chan_parameters = []
     for ndx, tx_rcv_pol in enumerate(tx_rcv_pols):
-        rcv_channels.append(
-            sicd.ChanParameters(
-                {"index": str(ndx + 1)}, sicd.TxRcvPolarization(tx_rcv_pol)
-            )
+        chan_parameters.append(
+            {
+                "@index": ndx + 1,
+                "TxRcvPolarization": tx_rcv_pol,
+            }
         )
 
-    sicd_ew["RadarCollection"] = sicd.RadarCollection(
-        sicd.TxFrequency(sicd.Min(str(tx_freq_min)), sicd.Max(str(tx_freq_max))),
-        sicd.Waveform(
-            {"size": "1"},
-            sicd.WFParameters(
-                {"index": "1"},
-                sicd.TxPulseLength(str(tx_pulse_length)),
-                sicd.TxRFBandwidth(str(tx_rf_bw)),
-                sicd.TxFreqStart(str(tx_freq_start)),
-                sicd.TxFMRate(str(tx_fm_rate)),
-                sicd.RcvWindowLength(str(rcv_window_length)),
-                sicd.ADCSampleRate(str(adc_sample_rate)),
-            ),
-        ),
-        sicd.TxPolarization(tx_polarization),
-        rcv_channels,
-    )
+    sicd_ew["RadarCollection"] = {
+        "TxFrequency": {
+            "Min": tx_freq_min,
+            "Max": tx_freq_max,
+        },
+        "Waveform": {
+            "@size": 1,
+            "WFParameters": [
+                {
+                    "@index": 1,
+                    "TxPulseLength": tx_pulse_length,
+                    "TxRFBandwidth": tx_rf_bw,
+                    "TxFreqStart": tx_freq_start,
+                    "TxFMRate": tx_fm_rate,
+                    "RcvWindowLength": rcv_window_length,
+                    "ADCSampleRate": adc_sample_rate,
+                }
+            ],
+        },
+        "TxPolarization": tx_polarization,
+        "RcvChannels": {
+            "@size": len(tx_rcv_pols),
+            "ChanParameters": chan_parameters,
+        },
+    }
     if len(tx_polarizations) > 1:
         sicd_ew["RadarCollection"]["TxPolarization"] = "SEQUENCE"
-        tx_sequence = sicd.TxSequence({"size": str(len(tx_polarizations))})
+        tx_steps = []
         for ndx, tx_pol in enumerate(tx_polarizations):
-            tx_sequence.append(
-                sicd.TxStep({"index": str(ndx + 1)}, sicd.TxPolarization(tx_pol))
+            tx_steps.append(
+                {
+                    "@index": ndx + 1,
+                    "TxPolarization": tx_pol,
+                }
             )
-        rcv_channels.addprevious(tx_sequence)
+        sicd_ew["RadarCollection"]["TxSequence"] = {
+            "@size": len(tx_polarizations),
+            "TxStep": tx_steps,
+        }
 
     now = (
         datetime.datetime.now(datetime.timezone.utc)
         .isoformat(timespec="microseconds")
         .replace("+00:00", "Z")
     )
-    sicd_ew["ImageFormation"] = sicd.ImageFormation(
-        sicd.RcvChanProc(sicd.NumChanProc("1"), sicd.ChanIndex(str(chan_index))),
-        sicd.TxRcvPolarizationProc(tx_rcv_polarization),
-        sicd.TStartProc(str(0)),
-        sicd.TEndProc(str(collection_duration)),
-        sicd.TxFrequencyProc(
-            sicd.MinProc(str(tx_freq_min)), sicd.MaxProc(str(tx_freq_max))
-        ),
-        sicd.ImageFormAlgo("RMA"),
-        sicd.STBeamComp("NO"),
-        sicd.ImageBeamComp("SV"),
-        sicd.AzAutofocus("NO"),
-        sicd.RgAutofocus("NO"),
-        sicd.Processing(
-            sicd.Type(f"sarkit-convert {__version__} @ {now}"),
-            sicd.Applied("true"),
-        ),
-    )
+    sicd_ew["ImageFormation"] = {
+        "RcvChanProc": {
+            "NumChanProc": 1,
+            "ChanIndex": [chan_index],
+        },
+        "TxRcvPolarizationProc": tx_rcv_polarization,
+        "TStartProc": 0,
+        "TEndProc": collection_duration,
+        "TxFrequencyProc": {
+            "MinProc": tx_freq_min,
+            "MaxProc": tx_freq_max,
+        },
+        "ImageFormAlgo": "RMA",
+        "STBeamComp": "NO",
+        "ImageBeamComp": "SV",
+        "AzAutofocus": "NO",
+        "RgAutofocus": "NO",
+        "Processing": [
+            {
+                "Type": f"sarkit-convert {__version__} @ {now}",
+                "Applied": True,
+            },
+        ],
+    }
 
     sicd_ew["Antenna"]["TwoWay"]["XAxisPoly"] = ant_x_dir_poly
     sicd_ew["Antenna"]["TwoWay"]["YAxisPoly"] = ant_y_dir_poly
@@ -777,20 +786,17 @@ def hdf5_to_sicd(
         dtype=float, shape=(1, 1)
     )
 
-    sicd_ew["RMA"] = sicd.RMA(
-        sicd.RMAlgoType("OMEGA_K"),
-        sicd.ImageType("INCA"),
-        sicd.INCA(
-            sicd.TimeCAPoly(),
-            sicd.R_CA_SCP(str(scp_rca)),
-            sicd.FreqZero(str(center_frequency)),
-            sicd.DRateSFPoly(),
-            sicd.DopCentroidPoly(),
-        ),
-    )
-    sicd_ew["RMA"]["INCA"]["TimeCAPoly"] = time_ca_poly
-    sicd_ew["RMA"]["INCA"]["DRateSFPoly"] = drsf_poly
-    sicd_ew["RMA"]["INCA"]["DopCentroidPoly"] = doppler_centroid_poly
+    sicd_ew["RMA"] = {
+        "RMAlgoType": "OMEGA_K",
+        "ImageType": "INCA",
+        "INCA": {
+            "TimeCAPoly": time_ca_poly,
+            "R_CA_SCP": scp_rca,
+            "FreqZero": center_frequency,
+            "DRateSFPoly": drsf_poly,
+            "DopCentroidPoly": doppler_centroid_poly,
+        },
+    }
 
     sicd_ew["SCPCOA"] = sksicd.compute_scp_coa(sicd_xml_obj.getroottree())
 
@@ -811,27 +817,16 @@ def hdf5_to_sicd(
             sigmazero_poly = betazero_poly * np.cos(graze) * np.cos(twist)
             gammazero_poly = betazero_poly / np.tan(graze) * np.cos(twist)
 
-            radiometric = sicd.Radiometric(
-                sicd.SigmaZeroSFPoly(), sicd.BetaZeroSFPoly(), sicd.GammaZeroSFPoly()
-            )
-            sksicd.Poly2dType().set_elem(
-                radiometric.find("./{*}SigmaZeroSFPoly"), sigmazero_poly
-            )
-            sksicd.Poly2dType().set_elem(
-                radiometric.find("./{*}BetaZeroSFPoly"), betazero_poly
-            )
-            sksicd.Poly2dType().set_elem(
-                radiometric.find("./{*}GammaZeroSFPoly"), gammazero_poly
-            )
+            sicd_ew["Radiometric"] = {
+                "SigmaZeroSFPoly": sigmazero_poly,
+                "BetaZeroSFPoly": betazero_poly,
+                "GammaZeroSFPoly": gammazero_poly,
+            }
             if rcs_row_sf and rcs_col_sf:
                 rcssf_poly = betazero_poly * (
                     rcs_row_sf * rcs_col_sf / (row_bw * col_bw)
                 )
-                radiometric.find("./{*}SigmaZeroSFPoly").addprevious(sicd.RCSSFPoly())
-                sksicd.Poly2dType().set_elem(
-                    radiometric.find("./{*}RCSSFPoly"), rcssf_poly
-                )
-            sicd_xml_obj.find("./{*}Antenna").addprevious(radiometric)
+                sicd_ew["Radiometric"]["RCSSFPoly"] = rcssf_poly
 
     # Add Geodata Corners
     sicd_xmltree = sicd_xml_obj.getroottree()
@@ -848,8 +843,7 @@ def hdf5_to_sicd(
         sarkit.wgs84.up(sarkit.wgs84.cartesian_to_geodetic(scp_ecf)),
     )
     icp_llh = sarkit.wgs84.cartesian_to_geodetic(icp_ecef)
-    xml_helper = sksicd.XmlHelper(sicd_xmltree)
-    xml_helper.set("./{*}GeoData/{*}ImageCorners", icp_llh[:, :2])
+    sicd_ew["GeoData"]["ImageCorners"] = icp_llh[:, :2]
 
     # Validate XML
     sicd_con = sarkit.verification.SicdConsistency(sicd_xmltree)
