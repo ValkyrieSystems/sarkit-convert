@@ -186,38 +186,35 @@ def broadening_from_amp(amp_vals, threshold_db=None):
     return width / fft_size * amp_vals.size
 
 
-def _get_sigma0_noise(xml_helper):
+def _get_sigma0_noise(sicd_ew):
     """Calculate the absolute noise estimate, in sigma0 power units."""
 
-    if xml_helper.element_tree.find("./{*}Radiometric/{*}SigmaZeroSFPoly") is None:
+    if "SigmaZeroSFPoly" not in sicd_ew["Radiometric"]:
         raise ValueError(
             "Radiometric.SigmaZeroSFPoly is not populated, so no sigma0 noise estimate can be derived."
         )
-    if (
-        xml_helper.load("./{*}Radiometric/{*}NoiseLevel/{*}NoiseLevelType")
-        != "ABSOLUTE"
-    ):
+    if sicd_ew["Radiometric"]["NoiseLevel"]["NoiseLevelType"] != "ABSOLUTE":
         raise ValueError(
             "Radiometric.NoiseLevel.NoiseLevelType is not `ABSOLUTE` so no noise estimate can be derived."
         )
 
-    noisepoly = xml_helper.load("./{*}Radiometric/{*}NoiseLevel/{*}NoisePoly")
+    noisepoly = sicd_ew["Radiometric"]["NoiseLevel"]["NoisePoly"]
     scp_noise_db = noisepoly[0, 0]
     scp_noise = 10 ** (scp_noise_db / 10)
 
     # convert to SigmaZero value
-    sigma_zero_sf = xml_helper.load("./{*}Radiometric/{*}SigmaZeroSFPoly")
+    sigma_zero_sf = sicd_ew["Radiometric"]["SigmaZeroSFPoly"]
     scp_noise *= sigma_zero_sf[0, 0]
 
     return scp_noise
 
 
-def _get_default_signal_estimate(xml_helper):
+def _get_default_signal_estimate(sicd_ew):
     """Gets default signal for use in the RNIIRS calculation.
 
     This will be 1.0 for copolar (or unknown) collections, and 0.25 for cross-pole collections."""
 
-    pol = xml_helper.load("./{*}ImageFormation/{*}TxRcvPolarizationProc")
+    pol = sicd_ew["ImageFormation"].get("TxRcvPolarizationProc", None)
     if pol is None or ":" not in pol:
         return 1.0
 
@@ -259,23 +256,23 @@ def _estimate_rniirs(information_density):
     return out
 
 
-def get_rniirs_estimate(xml_helper):
+def get_rniirs_estimate(sicd_ew):
     """This calculates the value(s) for RNIIRS and information density for SICD, according to the RGIQE."""
-    scp_noise = _get_sigma0_noise(xml_helper)
-    signal = _get_default_signal_estimate(xml_helper)
+    scp_noise = _get_sigma0_noise(sicd_ew)
+    signal = _get_default_signal_estimate(sicd_ew)
 
-    u_row = xml_helper.load("./{*}Grid/{*}Row/{*}UVectECF")
-    u_col = xml_helper.load("./{*}Grid/{*}Col/{*}UVectECF")
+    u_row = sicd_ew["Grid"]["Row"]["UVectECF"]
+    u_col = sicd_ew["Grid"]["Col"]["UVectECF"]
     ipn = np.cross(u_row, u_col)
     u_ipn = ipn / np.linalg.norm(ipn)
 
-    scp_llh = xml_helper.load("./{*}GeoData/{*}SCP/{*}LLH")
+    scp_llh = sicd_ew["GeoData"]["SCP"]["LLH"]
     u_gpn = sarkit.wgs84.up(scp_llh)
 
     bw_sf = np.dot(u_gpn, u_ipn)
     bw_area = abs(
-        xml_helper.load("./{*}Grid/{*}Row/{*}ImpRespBW")
-        * xml_helper.load("./{*}Grid/{*}Col/{*}ImpRespBW")
+        sicd_ew["Grid"]["Row"]["ImpRespBW"]
+        * sicd_ew["Grid"]["Col"]["ImpRespBW"]
         * bw_sf
     )
 

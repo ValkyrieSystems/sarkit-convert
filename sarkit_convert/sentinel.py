@@ -13,8 +13,7 @@ import functools
 import pathlib
 
 import dateutil.parser
-import lxml.builder
-import lxml.etree as et
+import lxml.etree
 import numpy as np
 import numpy.linalg as npl
 import numpy.polynomial.polynomial as npp
@@ -920,7 +919,7 @@ def _collect_burst_info(product_root_node, base_info, swath_info):
 
 def _calc_radiometric_info(cal_file_name, swath_info, burst_info_list):
     """Compute radiometric polys"""
-    cal_root_node = et.parse(cal_file_name).getroot()
+    cal_root_node = lxml.etree.parse(cal_file_name).getroot()
     cal_vector_list = cal_root_node.findall(
         "./{*}calibrationVectorList/{*}calibrationVector"
     )
@@ -1036,7 +1035,7 @@ def _calc_radiometric_info(cal_file_name, swath_info, burst_info_list):
 
 def _calc_noise_level_info(noise_file_name, swath_info, burst_info_list):
     """Compute noise poly"""
-    noise_root_node = et.parse(noise_file_name).getroot()
+    noise_root_node = lxml.etree.parse(noise_file_name).getroot()
     mode_id = swath_info["mode_id"]
     lines_per_burst = swath_info["num_cols"]
     range_size_pixels = swath_info["num_rows"]
@@ -1182,232 +1181,165 @@ def _complete_filename(swath_info, burst_info, filename_template):
 
 
 def _create_sicd_xml(base_info, swath_info, burst_info, classification):
-    em = lxml.builder.ElementMaker(namespace=NSMAP["sicd"], nsmap={None: NSMAP["sicd"]})
-
-    sicd_xml_obj = em.SICD()
+    sicd_xml_obj = lxml.etree.Element(
+        f"{{{NSMAP['sicd']}}}SICD", nsmap={None: NSMAP["sicd"]}
+    )
     sicd_ew = sksicd.ElementWrapper(sicd_xml_obj)
 
     # Collection Info
-    sicd_ew["CollectionInfo"] = em.CollectionInfo(
-        em.CollectorName(swath_info["collector_name"]),
-        em.CoreName(burst_info["core_name"]),
-        em.CollectType(base_info["collect_type"]),
-        em.RadarMode(
-            em.ModeType(base_info["mode_type"]),
-            em.ModeID(swath_info["mode_id"]),
-        ),
-        em.Classification(classification),
-        em.Parameter({"name": "SLICE"}, swath_info["parameters"]["SLICE"]),
-        em.Parameter({"name": "BURST"}, burst_info["parameters"]["BURST"]),
-        em.Parameter({"name": "SWATH"}, swath_info["parameters"]["SWATH"]),
-        em.Parameter(
-            {"name": "ORBIT_SOURCE"}, swath_info["parameters"]["ORBIT_SOURCE"]
-        ),
-        *(
-            [
-                em.Parameter(
-                    {"name": "BURST_ID"}, str(burst_info["parameters"]["BURST_ID"])
-                )
-            ]
-            if burst_info["parameters"].get("BURST_ID") is not None
-            else []
-        ),
-        em.Parameter(
-            {"name": "MISSION_DATA_TAKE_ID"},
-            swath_info["parameters"]["MISSION_DATA_TAKE_ID"],
-        ),
-        em.Parameter(
-            {"name": "RELATIVE_ORBIT_NUM"},
-            str(base_info["parameters"]["RELATIVE_ORBIT_NUM"]),
-        ),
+    parameter = [
+        ("SLICE", swath_info["parameters"]["SLICE"]),
+        ("BURST", burst_info["parameters"]["BURST"]),
+        ("SWATH", swath_info["parameters"]["SWATH"]),
+        ("ORBIT_SOURCE", swath_info["parameters"]["ORBIT_SOURCE"]),
+    ]
+    if burst_info["parameters"].get("BURST_ID") is not None:
+        parameter.append(("BURST_ID", str(burst_info["parameters"]["BURST_ID"])))
+    parameter.extend(
+        [
+            ("MISSION_DATA_TAKE_ID", swath_info["parameters"]["MISSION_DATA_TAKE_ID"]),
+            ("RELATIVE_ORBIT_NUM", str(base_info["parameters"]["RELATIVE_ORBIT_NUM"])),
+        ]
     )
+    sicd_ew["CollectionInfo"] = {
+        "CollectorName": swath_info["collector_name"],
+        "CoreName": burst_info["core_name"],
+        "CollectType": base_info["collect_type"],
+        "RadarMode": {
+            "ModeType": base_info["mode_type"],
+            "ModeID": swath_info["mode_id"],
+        },
+        "Classification": classification,
+        "Parameter": parameter,
+    }
+    sicd_ew["ImageCreation"] = {
+        "Application": base_info["creation_application"],
+        "DateTime": base_info["creation_date_time"],
+    }
+    sicd_ew["ImageData"] = {
+        "PixelType": swath_info["pixel_type"],
+        "NumRows": swath_info["num_rows"],
+        "NumCols": swath_info["num_cols"],
+        "FirstRow": swath_info["first_row"],
+        "FirstCol": swath_info["first_col"],
+        "FullImage": {
+            "NumRows": swath_info["num_rows"],
+            "NumCols": swath_info["num_cols"],
+        },
+        "SCPPixel": swath_info["scp_pixel"],
+        "ValidData": burst_info["valid_data"],
+    }
 
-    # Image Creation
-    sicd_ew["ImageCreation"] = em.ImageCreation(
-        em.Application(base_info["creation_application"]),
-        em.DateTime(base_info["creation_date_time"].strftime("%Y-%m-%dT%H:%M:%SZ")),
-    )
+    sicd_ew["GeoData"] = {
+        "EarthModel": "WGS_84",
+        "SCP": {
+            "ECF": burst_info["scp_ecf"],
+            "LLH": burst_info["scp_llh"],
+        },
+    }
 
-    # Image Data
-    sicd_ew["ImageData"] = em.ImageData(
-        em.PixelType(swath_info["pixel_type"]),
-        em.NumRows(str(swath_info["num_rows"])),
-        em.NumCols(str(swath_info["num_cols"])),
-        em.FirstRow(str(swath_info["first_row"])),
-        em.FirstCol(str(swath_info["first_col"])),
-        em.FullImage(
-            em.NumRows(str(swath_info["num_rows"])),
-            em.NumCols(str(swath_info["num_cols"])),
-        ),
-        em.SCPPixel(
-            em.Row(str(swath_info["scp_pixel"][0])),
-            em.Col(str(swath_info["scp_pixel"][1])),
-        ),
-        em.ValidData(
-            {"size": "4"},
-            em.Vertex(
-                {"index": "1"},
-                em.Row(str(burst_info["valid_data"][0][0])),
-                em.Col(str(burst_info["valid_data"][0][1])),
-            ),
-            em.Vertex(
-                {"index": "2"},
-                em.Row(str(burst_info["valid_data"][1][0])),
-                em.Col(str(burst_info["valid_data"][1][1])),
-            ),
-            em.Vertex(
-                {"index": "3"},
-                em.Row(str(burst_info["valid_data"][2][0])),
-                em.Col(str(burst_info["valid_data"][2][1])),
-            ),
-            em.Vertex(
-                {"index": "4"},
-                em.Row(str(burst_info["valid_data"][3][0])),
-                em.Col(str(burst_info["valid_data"][3][1])),
-            ),
-        ),
-    )
+    sicd_ew["Grid"] = {
+        "ImagePlane": swath_info["image_plane"],
+        "Type": swath_info["grid_type"],
+        "TimeCOAPoly": burst_info["time_coa_poly_coefs"],
+        "Row": {
+            "UVectECF": burst_info["row_uvect_ecf"],
+            "SS": swath_info["row_ss"],
+            "ImpRespWid": swath_info["row_imp_res_wid"],
+            "Sgn": swath_info["row_sgn"],
+            "ImpRespBW": swath_info["row_imp_res_bw"],
+            "KCtr": swath_info["row_kctr"],
+            "DeltaK1": burst_info["row_delta_k1"],
+            "DeltaK2": burst_info["row_delta_k2"],
+            "DeltaKCOAPoly": swath_info["row_deltak_coa_poly"],
+            "WgtType": {
+                "WindowName": swath_info["row_window_name"],
+            },
+            "WgtFunct": swath_info["row_wgts"],
+        },
+        "Col": {
+            "UVectECF": burst_info["col_uvect_ecf"],
+            "SS": swath_info["col_ss"],
+            "ImpRespWid": swath_info["col_imp_res_wid"],
+            "Sgn": swath_info["col_sgn"],
+            "ImpRespBW": swath_info["col_imp_res_bw"],
+            "KCtr": swath_info["col_kctr"],
+            "DeltaK1": burst_info["col_delta_k1"],
+            "DeltaK2": burst_info["col_delta_k2"],
+            "DeltaKCOAPoly": burst_info["col_deltak_coa_poly"],
+            "WgtType": {
+                "WindowName": swath_info["col_window_name"],
+            },
+            "WgtFunct": swath_info["col_wgts"],
+        },
+    }
+    if swath_info["row_params"] is not None:
+        sicd_ew["Grid"]["Row"]["WgtType"]["Parameter"] = [
+            ("COEFFICIENT", str(swath_info["row_params"]))
+        ]
+    if swath_info["col_params"] is not None:
+        sicd_ew["Grid"]["Col"]["WgtType"]["Parameter"] = [
+            ("COEFFICIENT", str(swath_info["col_params"]))
+        ]
 
-    def _make_xyz(arr):
-        return [em.X(str(arr[0])), em.Y(str(arr[1])), em.Z(str(arr[2]))]
+    sicd_ew["Timeline"] = {
+        "CollectStart": burst_info["collect_start"],
+        "CollectDuration": burst_info["collect_duration"],
+        "IPP": {
+            "@size": 1,
+            "Set": [
+                {
+                    "@index": 1,
+                    "TStart": burst_info["ipp_set_tstart"],
+                    "TEnd": burst_info["ipp_set_tend"],
+                    "IPPStart": burst_info["ipp_set_ippstart"],
+                    "IPPEnd": burst_info["ipp_set_ippend"],
+                    "IPPPoly": swath_info["ipp_poly"],
+                }
+            ],
+        },
+    }
 
-    def __make_llh(arr):
-        return [em.Lat(str(arr[0])), em.Lon(str(arr[1])), em.HAE(str(arr[2]))]
-
-    # Geo Data
-    sicd_ew["GeoData"] = em.GeoData(
-        em.EarthModel("WGS_84"),
-        em.SCP(
-            em.ECF(*_make_xyz(burst_info["scp_ecf"])),
-            em.LLH(*__make_llh(burst_info["scp_llh"])),
-        ),
-        em.ImageCorners(),
-        em.ValidData(),
-    )
-
-    # Grid
-    sicd_ew["Grid"] = em.Grid(
-        em.ImagePlane(swath_info["image_plane"]),
-        em.Type(swath_info["grid_type"]),
-        em.TimeCOAPoly(),
-        em.Row(
-            em.UVectECF(*_make_xyz(burst_info["row_uvect_ecf"])),
-            em.SS(str(swath_info["row_ss"])),
-            em.ImpRespWid(str(swath_info["row_imp_res_wid"])),
-            em.Sgn(str(swath_info["row_sgn"])),
-            em.ImpRespBW(str(swath_info["row_imp_res_bw"])),
-            em.KCtr(str(swath_info["row_kctr"])),
-            em.DeltaK1(str(burst_info["row_delta_k1"])),
-            em.DeltaK2(str(burst_info["row_delta_k2"])),
-            em.DeltaKCOAPoly(),
-            em.WgtType(
-                em.WindowName(
-                    str(swath_info["row_window_name"]),
-                ),
-                *(
-                    [
-                        em.Parameter(
-                            {"name": "COEFFICIENT"},
-                            str(swath_info["row_params"]),
-                        )
-                    ]
-                    if swath_info["row_params"] is not None
-                    else []
-                ),
-            ),
-        ),
-        em.Col(
-            em.UVectECF(*_make_xyz(burst_info["col_uvect_ecf"])),
-            em.SS(str(swath_info["col_ss"])),
-            em.ImpRespWid(str(swath_info["col_imp_res_wid"])),
-            em.Sgn(str(swath_info["col_sgn"])),
-            em.ImpRespBW(str(swath_info["col_imp_res_bw"])),
-            em.KCtr(str(swath_info["col_kctr"])),
-            em.DeltaK1(str(burst_info["col_delta_k1"])),
-            em.DeltaK2(str(burst_info["col_delta_k2"])),
-            em.DeltaKCOAPoly(),
-            em.WgtType(
-                em.WindowName(
-                    str(swath_info["col_window_name"]),
-                ),
-                *(
-                    [
-                        em.Parameter(
-                            {"name": "COEFFICIENT"},
-                            str(swath_info["col_params"]),
-                        )
-                    ]
-                    if swath_info["col_params"] is not None
-                    else []
-                ),
-            ),
-        ),
-    )
-    sicd_ew["Grid"]["TimeCOAPoly"] = burst_info["time_coa_poly_coefs"]
-    sicd_ew["Grid"]["Row"]["DeltaKCOAPoly"] = swath_info["row_deltak_coa_poly"]
-    sicd_ew["Grid"]["Col"]["DeltaKCOAPoly"] = burst_info["col_deltak_coa_poly"]
-    sicd_ew["Grid"]["Row"]["WgtFunct"] = swath_info["row_wgts"]
-    sicd_ew["Grid"]["Col"]["WgtFunct"] = swath_info["col_wgts"]
-
-    # Timeline
-    sicd_ew["Timeline"] = em.Timeline(
-        em.CollectStart(burst_info["collect_start"].strftime("%Y-%m-%dT%H:%M:%S.%fZ")),
-        em.CollectDuration(str(burst_info["collect_duration"])),
-        em.IPP(
-            {"size": "1"},
-            em.Set(
-                {"index": "1"},
-                em.TStart(str(burst_info["ipp_set_tstart"])),
-                em.TEnd(str(burst_info["ipp_set_tend"])),
-                em.IPPStart(str(burst_info["ipp_set_ippstart"])),
-                em.IPPEnd(str(burst_info["ipp_set_ippend"])),
-                em.IPPPoly(),
-            ),
-        ),
-    )
-    sicd_ew["Timeline"]["IPP"]["Set"][0]["IPPPoly"] = swath_info["ipp_poly"]
-
-    # Position
     sicd_ew["Position"]["ARPPoly"] = burst_info["arp_poly_coefs"]
 
     # Radar Collection
-    sicd_ew["RadarCollection"] = em.RadarCollection(
-        em.TxFrequency(
-            em.Min(str(swath_info["tx_freq"][0])),
-            em.Max(str(swath_info["tx_freq"][1])),
-        ),
-        em.Waveform(
-            {"size": f"{len(swath_info['rcv_window_length'])}"},
-            *[
-                em.WFParameters(
-                    {"index": str(i)},
-                    em.TxPulseLength(str(swath_info["tx_pulse_length"])),
-                    em.TxRFBandwidth(str(swath_info["tx_rf_bw"])),
-                    em.TxFreqStart(str(swath_info["tx_freq_start"])),
-                    em.TxFMRate(str(swath_info["tx_fm_rate"])),
-                    em.RcvWindowLength(str(swl)),
-                    em.ADCSampleRate(str(swath_info["adc_sample_rate"])),
-                )
+    sicd_ew["RadarCollection"] = {
+        "TxFrequency": {
+            "Min": swath_info["tx_freq"][0],
+            "Max": swath_info["tx_freq"][1],
+        },
+        "Waveform": {
+            "@size": len(swath_info["rcv_window_length"]),
+            "WFParameters": [
+                {
+                    "@index": i,
+                    "TxPulseLength": swath_info["tx_pulse_length"],
+                    "TxRFBandwidth": swath_info["tx_rf_bw"],
+                    "TxFreqStart": swath_info["tx_freq_start"],
+                    "TxFMRate": swath_info["tx_fm_rate"],
+                    "RcvWindowLength": swl,
+                    "ADCSampleRate": swath_info["adc_sample_rate"],
+                }
                 for i, swl in enumerate(swath_info["rcv_window_length"], start=1)
             ],
-        ),
-        em.TxPolarization(swath_info["tx_polarization"]),
-        em.RcvChannels(
-            {"size": f"{len(base_info['tx_rcv_polarization'])}"},
-            *[
-                em.ChanParameters(
-                    {"index": str(i)},
-                    em.TxRcvPolarization(entry),
-                )
+        },
+        "TxPolarization": swath_info["tx_polarization"],
+        "RcvChannels": {
+            "@size": len(base_info["tx_rcv_polarization"]),
+            "ChanParameters": [
+                {
+                    "@index": i,
+                    "TxRcvPolarization": entry,
+                }
                 for i, entry in enumerate(base_info["tx_rcv_polarization"], start=1)
             ],
-        ),
-    )
+        },
+    }
 
-    chan_indices = None
+    chan_index = None
     for i, pol in enumerate(base_info["tx_rcv_polarization"], start=1):
         if pol == swath_info["tx_rcv_polarization_proc"]:
-            chan_indices = str(i)
+            chan_index = str(i)
 
     # Image Formation
     now = (
@@ -1415,48 +1347,44 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         .isoformat(timespec="microseconds")
         .replace("+00:00", "Z")
     )
-    sicd_ew["ImageFormation"] = em.ImageFormation(
-        em.RcvChanProc(
-            em.NumChanProc("1"),
-            em.PRFScaleFactor("1"),
-            em.ChanIndex(chan_indices),
-        ),
-        em.TxRcvPolarizationProc(swath_info["tx_rcv_polarization_proc"]),
-        em.TStartProc(str(burst_info["tstart_proc"])),
-        em.TEndProc(str(burst_info["tend_proc"])),
-        em.TxFrequencyProc(
-            em.MinProc(str(swath_info["tx_freq_proc"][0])),
-            em.MaxProc(str(swath_info["tx_freq_proc"][1])),
-        ),
-        em.ImageFormAlgo(swath_info["image_form_algo"]),
-        em.STBeamComp(swath_info["st_beam_comp"]),
-        em.ImageBeamComp(swath_info["image_beam_comp"]),
-        em.AzAutofocus(swath_info["az_autofocus"]),
-        em.RgAutofocus(swath_info["rg_autofocus"]),
-        em.Processing(
-            em.Type(f"sarkit-convert {__version__} @ {now}"),
-            em.Applied("true"),
-        ),
-    )
+    sicd_ew["ImageFormation"] = {
+        "RcvChanProc": {
+            "NumChanProc": 1,
+            "PRFScaleFactor": 1,
+            "ChanIndex": [chan_index],
+        },
+        "TxRcvPolarizationProc": swath_info["tx_rcv_polarization_proc"],
+        "TStartProc": burst_info["tstart_proc"],
+        "TEndProc": burst_info["tend_proc"],
+        "TxFrequencyProc": {
+            "MinProc": swath_info["tx_freq_proc"][0],
+            "MaxProc": swath_info["tx_freq_proc"][1],
+        },
+        "ImageFormAlgo": swath_info["image_form_algo"],
+        "STBeamComp": swath_info["st_beam_comp"],
+        "ImageBeamComp": swath_info["image_beam_comp"],
+        "AzAutofocus": swath_info["az_autofocus"],
+        "RgAutofocus": swath_info["rg_autofocus"],
+        "Processing": [
+            {
+                "Type": f"sarkit-convert {__version__} @ {now}",
+                "Applied": True,
+            },
+        ],
+    }
 
-    # RMA
-    sicd_ew["RMA"] = em.RMA(
-        em.RMAlgoType(swath_info["rm_algo_type"]),
-        em.ImageType(swath_info["image_type"]),
-        em.INCA(
-            em.TimeCAPoly(),
-            em.R_CA_SCP(str(swath_info["r_ca_scp"])),
-            em.FreqZero(str(swath_info["freq_zero"])),
-            em.DRateSFPoly(),
-            em.DopCentroidPoly(),
-            em.DopCentroidCOA(swath_info["dop_centroid_coa"]),
-        ),
-    )
-    sicd_ew["RMA"]["INCA"]["TimeCAPoly"] = burst_info["time_ca_poly_coefs"]
-    sicd_ew["RMA"]["INCA"]["DRateSFPoly"] = burst_info["drsf_poly_coefs"]
-    sicd_ew["RMA"]["INCA"]["DopCentroidPoly"] = burst_info[
-        "doppler_centroid_poly_coefs"
-    ]
+    sicd_ew["RMA"] = {
+        "RMAlgoType": swath_info["rm_algo_type"],
+        "ImageType": swath_info["image_type"],
+        "INCA": {
+            "TimeCAPoly": burst_info["time_ca_poly_coefs"],
+            "R_CA_SCP": swath_info["r_ca_scp"],
+            "FreqZero": swath_info["freq_zero"],
+            "DRateSFPoly": burst_info["drsf_poly_coefs"],
+            "DopCentroidPoly": burst_info["doppler_centroid_poly_coefs"],
+            "DopCentroidCOA": swath_info["dop_centroid_coa"],
+        },
+    }
 
     # Add Radiometric after Sentinel baseline processing calibration update on 25 Nov 2015.
     if "radiometric" in burst_info:
@@ -1483,14 +1411,14 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
     return sicd_xml_obj
 
 
-def _update_geo_data(xml_helper):
+def _update_geo_data(sicd_ew):
     # Update ImageCorners
-    num_rows = xml_helper.load("./{*}ImageData/{*}NumRows")
-    num_cols = xml_helper.load("./{*}ImageData/{*}NumCols")
-    row_ss = xml_helper.load("./{*}Grid/{*}Row/{*}SS")
-    col_ss = xml_helper.load("./{*}Grid/{*}Col/{*}SS")
-    scp_pixel = xml_helper.load("./{*}ImageData/{*}SCPPixel")
-    scp_ecf = xml_helper.load("./{*}GeoData/{*}SCP/{*}ECF")
+    num_rows = sicd_ew["ImageData"]["NumRows"]
+    num_cols = sicd_ew["ImageData"]["NumCols"]
+    row_ss = sicd_ew["Grid"]["Row"]["SS"]
+    col_ss = sicd_ew["Grid"]["Col"]["SS"]
+    scp_pixel = sicd_ew["ImageData"]["SCPPixel"]
+    scp_ecf = sicd_ew["GeoData"]["SCP"]["ECF"]
     image_grid_locations = (
         np.array(
             [
@@ -1504,27 +1432,24 @@ def _update_geo_data(xml_helper):
     ) * [row_ss, col_ss]
 
     icp_ecef, _, _ = sksicd.image_to_ground_plane(
-        xml_helper.element_tree,
+        sicd_ew.elem.getroottree(),
         image_grid_locations,
         scp_ecf,
         sarkit.wgs84.up(sarkit.wgs84.cartesian_to_geodetic(scp_ecf)),
     )
     icp_llh = sarkit.wgs84.cartesian_to_geodetic(icp_ecef)
-    xml_helper.set("./{*}GeoData/{*}ImageCorners", icp_llh[:, :2])
-    xml_helper.set("./{*}GeoData/{*}ValidData", icp_llh[:, :2])
+    sicd_ew["GeoData"]["ImageCorners"] = icp_llh[:, :2]
+    sicd_ew["GeoData"]["ValidData"] = icp_llh[:, :2]
 
 
-def _update_rniirs_info(xml_helper):
-    em = lxml.builder.ElementMaker(namespace=NSMAP["sicd"], nsmap={None: NSMAP["sicd"]})
-    info_density, predicted_rniirs = utils.get_rniirs_estimate(xml_helper)
-    collection_info_node = xml_helper.element_tree.find("./{*}CollectionInfo")
-
-    param_node = em.Parameter({"name": "INFORMATION_DENSITY"}, f"{info_density:0.2G}")
-    collection_info_node.append(param_node)
-    param_node = em.Parameter({"name": "PREDICTED_RNIIRS"}, f"{predicted_rniirs:0.1f}")
-    collection_info_node.append(param_node)
-
-    return
+def _update_rniirs_info(sicd_ew):
+    info_density, predicted_rniirs = utils.get_rniirs_estimate(sicd_ew)
+    sicd_ew["CollectionInfo"].add(
+        "Parameter", ("INFORMATION_DENSITY", f"{info_density:.2G}")
+    )
+    sicd_ew["CollectionInfo"].add(
+        "Parameter", ("PREDICTED_RNIIRS", f"{predicted_rniirs:.1f}")
+    )
 
 
 def main(args=None):
@@ -1551,13 +1476,13 @@ def main(args=None):
 
     manifest_filename = config.safe_product_folder / "manifest.safe"
 
-    manifest_root = et.parse(manifest_filename).getroot()
+    manifest_root = lxml.etree.parse(manifest_filename).getroot()
     base_info = _collect_base_info(manifest_root)
     files = _get_file_sets(config.safe_product_folder, manifest_root)
 
     used_filenames = set()
     for entry in files:
-        product_root_node = et.parse(entry["product"]).getroot()
+        product_root_node = lxml.etree.parse(entry["product"]).getroot()
         swath_info = _collect_swath_info(product_root_node, base_info)
         burst_info_list = _collect_burst_info(product_root_node, base_info, swath_info)
         if base_info["creation_date_time"].date() >= np.datetime64("2015-11-25"):
@@ -1571,26 +1496,25 @@ def main(args=None):
             image_width = tif.pages[0].tags.values()[0].value
         begin_col = 0
         for burst_info in burst_info_list:
-            sicd = _create_sicd_xml(
+            sicd_xml_obj = _create_sicd_xml(
                 base_info, swath_info, burst_info, config.classification.upper()
             )
+            sicd_ew = sksicd.ElementWrapper(sicd_xml_obj)
             # Add SCPCOA node
-            scp_coa = sksicd.compute_scp_coa(sicd.getroottree())
-            sicd.find("./{*}ImageFormation").addnext(scp_coa)
-            xml_helper = sksicd.XmlHelper(et.ElementTree(sicd))
+            sicd_ew["SCPCOA"] = sksicd.compute_scp_coa(sicd_xml_obj.getroottree())
             # Update ImageCorners and ValidData
-            _update_geo_data(xml_helper)
+            _update_geo_data(sicd_ew)
 
             # RNIIRS calcs require radiometric info
             if "radiometric" in burst_info:
-                _update_rniirs_info(xml_helper)
+                _update_rniirs_info(sicd_ew)
 
             # Check for XML consistency
-            sicd_con = sarkit.verification.SicdConsistency(sicd)
+            sicd_con = sarkit.verification.SicdConsistency(sicd_ew.elem)
             sicd_con.check()
             sicd_con.print_result(fail_detail=True)
 
-            end_col = begin_col + xml_helper.load("{*}ImageData/{*}NumCols")
+            end_col = begin_col + sicd_ew["ImageData"]["NumCols"]
             subset = (slice(0, image_width, 1), slice(begin_col, end_col, 1))
             begin_col = end_col
             image_subset = np.ascontiguousarray(image[subset])
@@ -1605,22 +1529,22 @@ def main(args=None):
             )
 
             metadata = sksicd.NitfMetadata(
-                xmltree=sicd.getroottree(),
+                xmltree=sicd_ew.elem.getroottree(),
                 file_header_part={
                     "ostaid": "ESA",
-                    "ftitle": xml_helper.load("{*}CollectionInfo/{*}CoreName"),
+                    "ftitle": sicd_ew["CollectionInfo"]["CoreName"],
                     "security": {
                         "clas": config.classification[0].upper(),
                         "clsy": "US",
                     },
                 },
                 im_subheader_part={
-                    "iid2": xml_helper.load("{*}CollectionInfo/{*}CoreName"),
+                    "iid2": sicd_ew["CollectionInfo"]["CoreName"],
                     "security": {
                         "clas": config.classification[0].upper(),
                         "clsy": "US",
                     },
-                    "isorce": xml_helper.load("{*}CollectionInfo/{*}CollectorName"),
+                    "isorce": sicd_ew["CollectionInfo"]["CollectorName"],
                 },
                 de_subheader_part={
                     "security": {
