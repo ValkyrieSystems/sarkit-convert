@@ -9,6 +9,7 @@ Convert a complex image(s) from the Sentinel SAFE to SICD(s).
 
 import argparse
 import datetime
+import functools
 import pathlib
 
 import dateutil.parser
@@ -175,6 +176,28 @@ def _collect_base_info(root_node):
     return base_info
 
 
+@functools.lru_cache
+def _window_params(window_name, coefficient):
+    window_name = window_name.upper()
+    if window_name == "HAMMING":
+        wgts = scipy.signal.windows.general_hamming(512, float(coefficient), sym=True)
+    elif window_name == "KAISER":
+        wgts = scipy.signal.windows.kaiser(512, float(coefficient), sym=True)
+    else:  # Default to UNIFORM
+        window_name = "UNIFORM"
+        coefficient = None
+        wgts = np.ones(256)
+
+    broadening_factor = utils.broadening_from_amp(wgts)
+
+    return {
+        "window_name": window_name,
+        "coefficient": coefficient,
+        "wgts": wgts,
+        "broadening_factor": broadening_factor,
+    }
+
+
 def _collect_swath_info(product_root_node, base_info):
     swath_info = dict()
     burst_list = product_root_node.findall("./swathTiming/burstList/burst")
@@ -333,20 +356,15 @@ def _collect_swath_info(product_root_node, base_info):
     range_proc = product_root_node.find(
         "./imageAnnotation/processingInformation/swathProcParamsList/swathProcParams/rangeProcessing"
     )
-    swath_info["row_window_name"] = range_proc.find("./windowType").text.upper()
-    swath_info["row_params"] = range_proc.find("./windowCoefficient").text
-    if swath_info["row_window_name"] == "HAMMING":
-        swath_info["row_wgts"] = scipy.signal.windows.general_hamming(
-            512, float(swath_info["row_params"]), sym=True
-        )
-    elif swath_info["row_window_name"] == "KAISER":
-        swath_info["row_wgts"] = scipy.signal.windows.kaiser(
-            512, float(swath_info["row_params"]), sym=True
-        )
-    else:  # Default to UNIFORM
-        swath_info["row_window_name"] = "UNIFORM"
-        swath_info["row_params"] = None
-        swath_info["row_wgts"] = np.ones(256)
+
+    window_info = _window_params(
+        range_proc.find("./windowType").text,
+        range_proc.find("./windowCoefficient").text,
+    )
+    swath_info["row_window_name"] = window_info["window_name"]
+    swath_info["row_params"] = window_info["coefficient"]
+    swath_info["row_wgts"] = window_info["wgts"]
+    swath_info["row_broadening_factor"] = window_info["broadening_factor"]
 
     swath_info["row_ss"] = (_constants.speed_of_light / 2) * delta_tau_s
     swath_info["row_sgn"] = -1
@@ -373,29 +391,24 @@ def _collect_swath_info(product_root_node, base_info):
         ).text
     )
 
-    swath_info["col_window_name"] = az_proc.find("./windowType").text.upper()
-    swath_info["col_params"] = az_proc.find("./windowCoefficient").text
-    if swath_info["col_window_name"] == "HAMMING":
-        swath_info["col_wgts"] = scipy.signal.windows.general_hamming(
-            512, float(swath_info["col_params"]), sym=True
-        )
-    elif swath_info["col_window_name"] == "KAISER":
-        swath_info["col_wgts"] = scipy.signal.windows.kaiser(
-            512, float(swath_info["col_params"]), sym=True
-        )
-    else:  # Default to UNIFORM
-        swath_info["col_window_name"] = "UNIFORM"
-        swath_info["col_params"] = None
-        swath_info["col_wgts"] = np.ones(256)
+    window_info = _window_params(
+        az_proc.find("./windowType").text, az_proc.find("./windowCoefficient").text
+    )
+    swath_info["col_window_name"] = window_info["window_name"]
+    swath_info["col_params"] = window_info["coefficient"]
+    swath_info["col_wgts"] = window_info["wgts"]
+    swath_info["col_broadening_factor"] = window_info["broadening_factor"]
 
     swath_info["col_sgn"] = -1
     swath_info["col_kctr"] = 0.0
     swath_info["col_imp_res_bw"] = dop_bw * swath_info["ss_zd_s"] / swath_info["col_ss"]
 
-    row_broadening_factor = utils.broadening_from_amp(swath_info["row_wgts"])
-    col_broadening_factor = utils.broadening_from_amp(swath_info["col_wgts"])
-    swath_info["row_imp_res_wid"] = row_broadening_factor / swath_info["row_imp_res_bw"]
-    swath_info["col_imp_res_wid"] = col_broadening_factor / swath_info["col_imp_res_bw"]
+    swath_info["row_imp_res_wid"] = (
+        swath_info["row_broadening_factor"] / swath_info["row_imp_res_bw"]
+    )
+    swath_info["col_imp_res_wid"] = (
+        swath_info["col_broadening_factor"] / swath_info["col_imp_res_bw"]
+    )
 
     return swath_info
 
@@ -1504,12 +1517,16 @@ def main(args=None):
             end_col = begin_col + sicd_ew["ImageData"]["NumCols"]
             subset = (slice(0, image_width, 1), slice(begin_col, end_col, 1))
             begin_col = end_col
-            image_subset = image[subset]
+            image_subset = np.ascontiguousarray(image[subset])
             pixel_type = swath_info["pixel_type"]
-            view_dtype = sksicd.PIXEL_TYPES[pixel_type]["dtype"]
-            complex_data = np.empty(image_subset.shape, dtype=view_dtype)
-            complex_data["real"] = image_subset.real.astype(np.int16)
-            complex_data["imag"] = image_subset.imag.astype(np.int16)
+            # Unfortunatly tifffile always promotes to complex64. Because we have to convert back to int16,
+            # we'll go ahead and do the byteswap and save sarkit from having to do it later.
+            view_dtype = sksicd.PIXEL_TYPES[pixel_type]["dtype"].newbyteorder(">")
+            complex_data = (
+                image_subset.view(image_subset.real.dtype)
+                .astype(">i2")
+                .view(view_dtype)
+            )
 
             metadata = sksicd.NitfMetadata(
                 xmltree=sicd_ew.elem.getroottree(),
