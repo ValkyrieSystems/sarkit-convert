@@ -115,3 +115,8 @@ module = [
     "shapely.*",
 ]
 ignore_missing_imports = true
+
+[project.urls]
+Repository = "https://github.com/ValkyrieSystems/sarkit-convert.git"
+"Bug Tracker" = "https://github.com/ValkyrieSystems/sarkit-convert/issues"
+Changelog = "https://github.com/ValkyrieSystems/sarkit-convert/blob/main/CHANGELOG.md"
