@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## Fixed
+### Fixed
 - Improved Sentinel-1 converter performance
+- Acceleration term in `sarkit_convert.create_arp_poly.create_arp_poly`
 
 
 ## [0.2.0] - 2026-01-15
