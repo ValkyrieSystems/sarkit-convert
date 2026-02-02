@@ -13,14 +13,14 @@ nox.options.sessions = (
 
 @nox.session
 def format(session):
-    session.run_install("pdm", "sync", external=True)
+    session.run_install("pdm", "sync", "-G", "dev-lint", external=True)
     session.run("ruff", "check", "--fix")
     session.run("ruff", "format")
 
 
 @nox.session
 def lint(session):
-    session.run_install("pdm", "sync", "-G", "all", external=True)
+    session.run_install("pdm", "sync", "-G", "all", "-G", "dev-lint", external=True)
     session.run("ruff", "check")
     session.run(
         "ruff",
@@ -47,6 +47,8 @@ def test_core(session):
     session.run_install(
         "pdm",
         "sync",
+        "-G",
+        "dev-test",
         external=True,
     )
     session.run("pytest", "tests/core")
@@ -74,6 +76,8 @@ def test_extra(session, name):
         "sync",
         "-G",
         name,
+        "-G",
+        "dev-test",
         external=True,
     )
     session.run("pytest", f"tests/{name}")

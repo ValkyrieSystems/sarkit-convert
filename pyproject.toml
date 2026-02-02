@@ -61,12 +61,6 @@ all = [
 test = [
     "nox>=2025.2.9",
 ]
-doc = [
-    "sphinx>=7.2.6",
-    "numpydoc>=1.7.0",
-    "sphinx-rtd-theme>=2.0.0",
-    "sphinxcontrib-autoprogram>=0.1.9",
-]
 dev-lint = [
     "ruff>=0.3.0",
     "mypy>=1.8.0",
