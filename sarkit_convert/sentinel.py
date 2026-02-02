@@ -8,6 +8,7 @@ Convert a complex image(s) from the Sentinel SAFE to SICD(s).
 """
 
 import argparse
+import contextlib
 import datetime
 import functools
 import pathlib
@@ -198,7 +199,7 @@ def _window_params(window_name, coefficient):
     }
 
 
-def _collect_swath_info(product_root_node, base_info):
+def _collect_swath_info(product_root_node):
     swath_info = dict()
     burst_list = product_root_node.findall("./swathTiming/burstList/burst")
 
@@ -1452,6 +1453,21 @@ def _update_rniirs_info(sicd_ew):
     )
 
 
+@contextlib.contextmanager
+def uint_tiff():
+    """Overwrite SAMPLEFORMAT to force TIFFILE not to upcast from complex int16 to complex64
+
+    Per S1-RS-MDA-52-7441 (Sentinel-1 Product Specification) Table 6-13:
+    "Interpretation of pixel format. Set to 5 (complex signed integer, 'int16') for SLC products"
+    """
+    oldformat = tifffile.SAMPLEFORMAT
+    tifffile.SAMPLEFORMAT = lambda _: oldformat.UINT  # treat as UINT
+    try:
+        yield
+    finally:
+        tifffile.SAMPLEFORMAT = oldformat
+
+
 def main(args=None):
     """CLI for converting Sentinel SAFE to SICD"""
     parser = argparse.ArgumentParser(
@@ -1483,7 +1499,7 @@ def main(args=None):
     used_filenames = set()
     for entry in files:
         product_root_node = lxml.etree.parse(entry["product"]).getroot()
-        swath_info = _collect_swath_info(product_root_node, base_info)
+        swath_info = _collect_swath_info(product_root_node)
         burst_info_list = _collect_burst_info(product_root_node, base_info, swath_info)
         if base_info["creation_date_time"].date() >= np.datetime64("2015-11-25"):
             [burst_info.update({"radiometric": {}}) for burst_info in burst_info_list]
@@ -1491,7 +1507,12 @@ def main(args=None):
             _calc_noise_level_info(entry["noise"], swath_info, burst_info_list)
 
         # Grab the data and write the files
-        with tifffile.TiffFile(entry["data"]) as tif:
+        # Overwrite SAMPLEFORMAT to force TIFFILE not to upcast from complex int16 to complex64
+        # Treat as uint32 and handle the conversion later
+        assert swath_info["pixel_type"] != "RE16I_IM16I", (
+            "pixel handling assumes 'RE16I_IM16I'"
+        )
+        with uint_tiff(), tifffile.TiffFile(entry["data"]) as tif:
             image = tif.asarray().T
             image_width = tif.pages[0].tags.values()[0].value
         begin_col = 0
@@ -1519,14 +1540,10 @@ def main(args=None):
             begin_col = end_col
             image_subset = np.ascontiguousarray(image[subset])
             pixel_type = swath_info["pixel_type"]
-            # Unfortunatly tifffile always promotes to complex64. Because we have to convert back to int16,
-            # we'll go ahead and do the byteswap and save sarkit from having to do it later.
-            view_dtype = sksicd.PIXEL_TYPES[pixel_type]["dtype"].newbyteorder(">")
-            complex_data = (
-                image_subset.view(image_subset.real.dtype)
-                .astype(">i2")
-                .view(view_dtype)
+            view_dtype = sksicd.PIXEL_TYPES[pixel_type]["dtype"].newbyteorder(
+                image_subset.dtype.byteorder
             )
+            complex_data = image_subset.view(view_dtype)
 
             metadata = sksicd.NitfMetadata(
                 xmltree=sicd_ew.elem.getroottree(),
