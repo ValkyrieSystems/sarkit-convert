@@ -13,7 +13,8 @@ def test_main_smoke():
         text=True,
     )
     assert result.returncode == 0
-    assert "usage: sentinel.py" in result.stdout
+    assert "usage:" in result.stdout
+    assert "sentinel" in result.stdout
 
 
 def test_main_errors():
