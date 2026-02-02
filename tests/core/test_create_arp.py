@@ -92,8 +92,8 @@ def test_create_arp_poly(sicd_xml_filename):
         pos_err_m = np.linalg.norm(arp_pos - arp_poly[..., 0])
         vel_err_mag = mag(arp_vel, arp_poly[..., 1])
         vel_err_deg = ang(arp_vel, arp_poly[..., 1])
-        acc_err_mag = mag(arp_acc, arp_poly[..., 2])
-        acc_err_deg = ang(arp_acc, arp_poly[..., 2])
+        acc_err_mag = mag(arp_acc, arp_poly[..., 2] * 2)
+        acc_err_deg = ang(arp_acc, arp_poly[..., 2] * 2)
 
         assert pos_err_m < 10e3
         assert vel_err_deg < 0.1
