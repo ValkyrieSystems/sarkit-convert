@@ -163,4 +163,4 @@ def create_arp_poly(
     arp_acc = arp_acc_dir * arp_acc_mag - np.cross(
         [0, 0, omega_3], 2 * arp_vel + np.cross([0, 0, omega_3], arp_pos)
     )
-    return np.stack([arp_pos, arp_vel, arp_acc], axis=-1)
+    return np.stack([arp_pos, arp_vel, arp_acc / 2], axis=-1)

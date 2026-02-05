@@ -4,41 +4,41 @@ description = "Python library for converting SAR data to standard formats."
 authors = [
     {name = "Valkyrie Systems Corporation", email = "info@govsco.com"},
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
   "Topic :: Scientific/Engineering",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 dynamic = ["version"]
 
 dependencies = [
     "lxml>=5.1.0",
-    "numpy>=1.26.3",
-    "pyproj>=3.7.2",
+    "numpy>=2.0.0",
+    "pyproj>=3.6.1",
     "sarkit>=1.4.0",
-    "scipy>=1.15.1",
+    "scipy>=1.13.0",
 ]
 
 [project.optional-dependencies]
 iceye = [
-    "h5py>=3.12.1",
+    "h5py>=3.11.0",
     "python-dateutil>=2.9.0",
 ]
 
 cosmo = [
     "astropy>=6.0.0",
-    "h5py>=3.12.1",
+    "h5py>=3.11.0",
     "python-dateutil>=2.9.0",
-    "shapely>=2.0.2",
+    "shapely>=2.0.6",
 ]
 
 terrasar = [
@@ -47,7 +47,7 @@ terrasar = [
 
 sentinel = [
     "python-dateutil>=2.9.0",
-    "tifffile>=2025.5.10",
+    "tifffile>=2024.7.2",
 ]
 
 all = [
@@ -61,12 +61,6 @@ all = [
 test = [
     "nox>=2025.2.9",
 ]
-doc = [
-    "sphinx>=7.2.6",
-    "numpydoc>=1.7.0",
-    "sphinx-rtd-theme>=2.0.0",
-    "sphinxcontrib-autoprogram>=0.1.9",
-]
 dev-lint = [
     "ruff>=0.3.0",
     "mypy>=1.8.0",
@@ -74,8 +68,8 @@ dev-lint = [
 ]
 dev-test = [
     "pytest>=7.4.4",
-    "smart-open[http]>=7.5",
-    "tifffile>=2025.5.10",
+    "smart-open[http]>=7.1.0",
+    "tifffile>=2024.7.2",
 ]
 
 
