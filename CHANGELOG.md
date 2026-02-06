@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Utility for parsing TLEs in `sarkit_convert.tle`
+
 
 ## [0.3.1] - 2026-02-04
 
