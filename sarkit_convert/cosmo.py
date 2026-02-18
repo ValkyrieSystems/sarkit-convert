@@ -401,7 +401,7 @@ def hdf5_to_sicd(
     scp_ecf = scp_ecf[0]
     scp_llh = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
     scp_ca_pos = npp.polyval(scp_tca, apc_poly)
-    scp_ca_vel = npp.polyval(scp_tcoa, npp.polyder(apc_poly))
+    scp_ca_vel = npp.polyval(scp_tca, npp.polyder(apc_poly))
     los = scp_ecf - scp_ca_pos
     u_row = los / npl.norm(los)
     left = np.cross(scp_ca_pos, scp_ca_vel)
