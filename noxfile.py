@@ -65,7 +65,7 @@ def test_core_dependencies(session):
     session.run("python", "tests/core/test_dependencies.py")
 
 
-EXTRAS_TO_TEST = ["cosmo", "iceye", "sentinel", "terrasar"]
+EXTRAS_TO_TEST = ["cosmo", "iceye", "sentinel", "terrasar", "nisar"]
 
 
 @nox.session

@@ -41,6 +41,12 @@ cosmo = [
     "shapely>=2.0.6",
 ]
 
+nisar = [
+    "h5py>=3.12.1",
+    "python-dateutil>=2.9.0",
+    "shapely>=2.0.2",
+]
+
 terrasar = [
     "python-dateutil>=2.9.0",
 ]
@@ -53,6 +59,7 @@ sentinel = [
 all = [
     "sarkit-convert[iceye]",
     "sarkit-convert[cosmo]",
+    "sarkit-convert[nisar]",
     "sarkit-convert[terrasar]",
     "sarkit-convert[sentinel]",
 ]
