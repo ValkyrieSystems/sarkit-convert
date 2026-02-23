@@ -226,9 +226,6 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     row_ss = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str]["slantRangeSpacing"][
         "__value__"
     ]
-    col_ss = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
-        "sceneCenterAlongTrackSpacing"
-    ]["__value__"]
     scp_rg = img_rg[scp_pixel[0]]
     scp_zd = img_zd[scp_pixel[1]]
 
@@ -236,13 +233,15 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     bounding_polygon = shapely.from_wkt(
         h5dict["science"]["LSAR"]["identification"]["boundingPolygon"]["__value__"]
     )
-    scene_lonlat = np.asarray(bounding_polygon.centroid.coords)[0]
+    bp_ecef = sarkit.wgs84.geodetic_to_cartesian(np.array(bounding_polygon.exterior.coords)[:, [1, 0, 2]])
+    scene_center_ecef = np.mean(bp_ecef, axis=0)
+    scene_center_latlon = sarkit.wgs84.cartesian_to_geodetic(scene_center_ecef)[:2]
     scene_height = np.mean(np.asarray(bounding_polygon.exterior.coords)[:, 2])
     scene_ecf = sarkit.wgs84.geodetic_to_cartesian(
-        (scene_lonlat[1], scene_lonlat[0], scene_height)
+        (*scene_center_latlon, scene_height)
     )
 
-    # TODO Determine if provided terrain heights can be sensibly used here
+    # TODO Determine if reference terrain heights can be sensibly used here
     # In the datasets provided thus far they've been all zero and am unsure
     # what the following calculations would do with varying heights
     #
@@ -260,7 +259,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     varps = npp.polyval(times, npp.polyder(apc_poly)).T[np.newaxis, :, :]
     times = times[np.newaxis, :]
     rdots = np.zeros_like(ranges)
-    heights = np.zeros_like(ranges)
+    heights = np.full_like(ranges, scene_height)
     scene_sets = sksicd.projection.ProjectionSetsMono(
         t_COA=times, ARP_COA=arps, VARP_COA=varps, R_COA=ranges, Rdot_COA=rdots
     )
@@ -280,6 +279,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     range_rate_per_hz = -_constants.speed_of_light / (2 * acq_center_frequency)
     doppler_rate = rrdot / range_rate_per_hz
     drsf = rrdot * r_ca / vmag**2
+    col_ss = np.mean(vmag) * np.abs(img_zd_interval) * np.mean(drsf)
 
     doppler_centroid = h5dict["science"]["LSAR"]["RSLC"]["metadata"][
         "processingInformation"
@@ -371,16 +371,23 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     )
     min_tcoa = np.min(time_coa)
     max_tcoa = np.max(time_coa)
-    new_start_adjust = min_tcoa - max_integration_time / 2
+
+    # Some Grid stuff to support finishing timeline
+    row_kctr = str(proc_center_frequency / (_constants.speed_of_light / 2))
+    row_imp_res_bw = proc_rg_bw / (_constants.speed_of_light / 2)
+    col_imp_res_bw = min(proc_az_bw * img_zd_interval, 1) / col_ss
+
+    # Update and finish Timeline
+    integration_time = np.max(img_rg) / np.mean(vmag) * col_imp_resp_bw / (row_kctr + row_imp_res_bw / 2)
+    new_start_adjust = min_tcoa - integration_time / 2
     collect_start = collect_start + datetime.timedelta(seconds=new_start_adjust)
-    collect_duration = max_tcoa - min_tcoa + max_integration_time
+    collect_duration = max_tcoa - min_tcoa + integration_time
     time_ca_poly[0] -= new_start_adjust
     time_coa_poly[0, 0] -= new_start_adjust
     apc_poly = np.asarray(
         [utils.polyshift(apc_poly[:, ndx], new_start_adjust) for ndx in range(3)]
     ).T
 
-    # Finish Timeline
     acq_prf = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
         "nominalAcquisitionPRF"
     ]["__value__"]
@@ -422,13 +429,9 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     uspz = spz / npl.norm(spz)
     u_col = np.cross(uspz, u_row)
 
-    # Grid
-    row_imp_res_bw = proc_rg_bw / (_constants.speed_of_light / 2)
+    # Finish Grid
     row_sgn = -1
-    row_kctr = str(proc_center_frequency / (_constants.speed_of_light / 2))
     row_deltak_coa_poly = np.array([[0]])
-
-    col_imp_res_bw = min(proc_az_bw * img_zd_interval, 1) / col_ss
     col_sgn = -1
     col_kctr = 0
     dc_sgn = np.sign(-doppler_rate_poly[0, 0])
@@ -652,6 +655,8 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     sicd_con = sarkit.verification.SicdConsistency(sicd_xmltree)
     sicd_con.check()
     sicd_con.print_result(fail_detail=True)
+    scp_plus_one_col_ecef = sksicd.image_to_constant_hae_surface(sicd_xmltree, [0, col_ss], scene_height)[0]
+    col_ss = np.linalg.norm(scp_plus_one_col_ecef - scp_ecf)
 
     # Grab the data
     with h5py.File(h5_filename, "r") as h5file:
