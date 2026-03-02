@@ -373,12 +373,12 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     max_tcoa = np.max(time_coa)
 
     # Some Grid stuff to support finishing timeline
-    row_kctr = str(proc_center_frequency / (_constants.speed_of_light / 2))
+    row_kctr = proc_center_frequency / (_constants.speed_of_light / 2)
     row_imp_res_bw = proc_rg_bw / (_constants.speed_of_light / 2)
     col_imp_res_bw = min(proc_az_bw * img_zd_interval, 1) / col_ss
 
     # Update and finish Timeline
-    integration_time = np.max(img_rg) / np.mean(vmag) * col_imp_resp_bw / (row_kctr + row_imp_res_bw / 2)
+    integration_time = np.max(img_rg) / np.mean(vmag) * col_imp_res_bw / (row_kctr + row_imp_res_bw / 2)
     new_start_adjust = min_tcoa - integration_time / 2
     collect_start = collect_start + datetime.timedelta(seconds=new_start_adjust)
     collect_duration = max_tcoa - min_tcoa + integration_time
@@ -394,6 +394,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     num_pulses = int(np.round(collect_duration * acq_prf))
     t_start = 0
     t_end = collect_duration
+    t_end_proc = collect_duration
     ipp_start = 0
     ipp_end = int(num_pulses - 1)
     ipp_poly = [0, acq_prf]
