@@ -233,13 +233,13 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     bounding_polygon = shapely.from_wkt(
         h5dict["science"]["LSAR"]["identification"]["boundingPolygon"]["__value__"]
     )
-    bp_ecef = sarkit.wgs84.geodetic_to_cartesian(np.array(bounding_polygon.exterior.coords)[:, [1, 0, 2]])
+    bp_ecef = sarkit.wgs84.geodetic_to_cartesian(
+        np.array(bounding_polygon.exterior.coords)[:, [1, 0, 2]]
+    )
     scene_center_ecef = np.mean(bp_ecef, axis=0)
     scene_center_latlon = sarkit.wgs84.cartesian_to_geodetic(scene_center_ecef)[:2]
     scene_height = np.mean(np.asarray(bounding_polygon.exterior.coords)[:, 2])
-    scene_ecf = sarkit.wgs84.geodetic_to_cartesian(
-        (*scene_center_latlon, scene_height)
-    )
+    scene_ecf = sarkit.wgs84.geodetic_to_cartesian((*scene_center_latlon, scene_height))
 
     # TODO Determine if reference terrain heights can be sensibly used here
     # In the datasets provided thus far they've been all zero and am unsure
@@ -378,7 +378,12 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     col_imp_res_bw = min(proc_az_bw * img_zd_interval, 1) / col_ss
 
     # Update and finish Timeline
-    integration_time = np.max(img_rg) / np.mean(vmag) * col_imp_res_bw / (row_kctr + row_imp_res_bw / 2)
+    integration_time = (
+        np.max(img_rg)
+        / np.mean(vmag)
+        * col_imp_res_bw
+        / (row_kctr + row_imp_res_bw / 2)
+    )
     new_start_adjust = min_tcoa - integration_time / 2
     collect_start = collect_start + datetime.timedelta(seconds=new_start_adjust)
     collect_duration = max_tcoa - min_tcoa + integration_time
@@ -656,7 +661,9 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     sicd_con = sarkit.verification.SicdConsistency(sicd_xmltree)
     sicd_con.check()
     sicd_con.print_result(fail_detail=True)
-    scp_plus_one_col_ecef = sksicd.image_to_constant_hae_surface(sicd_xmltree, [0, col_ss], scene_height)[0]
+    scp_plus_one_col_ecef = sksicd.image_to_constant_hae_surface(
+        sicd_xmltree, [0, col_ss], scene_height
+    )[0]
     col_ss = np.linalg.norm(scp_plus_one_col_ecef - scp_ecf)
 
     # Grab the data
