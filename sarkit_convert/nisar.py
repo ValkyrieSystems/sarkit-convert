@@ -199,7 +199,6 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     # Image Formation
     tx_rcv_polarization_proc = tx_rcv_polarization
     t_start_proc = 0
-    t_end_proc = collect_duration
     proc_center_frequency = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
         "processedCenterFrequency"
     ]["__value__"]
@@ -661,10 +660,6 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     sicd_con = sarkit.verification.SicdConsistency(sicd_xmltree)
     sicd_con.check()
     sicd_con.print_result(fail_detail=True)
-    scp_plus_one_col_ecef = sksicd.image_to_constant_hae_surface(
-        sicd_xmltree, [0, col_ss], scene_height
-    )[0]
-    col_ss = np.linalg.norm(scp_plus_one_col_ecef - scp_ecf)
 
     # Grab the data
     with h5py.File(h5_filename, "r") as h5file:
