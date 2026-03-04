@@ -685,52 +685,6 @@ def _collect_burst_info(product_root_node, base_info, swath_info):
 
         return time_coa_sampled.min(), time_coa_sampled.max()
 
-    def _update_geo_data_info(swath_info, burst_info):
-        scp_drsf = burst_info["drsf_poly_coefs"][0, 0]
-        scp_tca = burst_info["time_ca_poly_coefs"][0]
-        scp_tcoa = burst_info["time_coa_poly_coefs"][0, 0]
-        scp_delta_t_coa = scp_tcoa - scp_tca
-        scp_varp_ca_mag = npl.norm(
-            npp.polyval(scp_tca, npp.polyder(burst_info["arp_poly_coefs"]))
-        )
-        scp_rcoa = np.sqrt(
-            swath_info["r_ca_scp"] ** 2
-            + scp_drsf * scp_varp_ca_mag**2 * scp_delta_t_coa**2
-        )
-        scp_rratecoa = scp_drsf / scp_rcoa * scp_varp_ca_mag**2 * scp_delta_t_coa
-        scp_set = sksicd.projection.ProjectionSetsMono(
-            t_COA=np.array([scp_tcoa]),
-            ARP_COA=np.array([npp.polyval(scp_tcoa, burst_info["arp_poly_coefs"])]),
-            VARP_COA=np.array(
-                [npp.polyval(scp_tcoa, npp.polyder(burst_info["arp_poly_coefs"]))]
-            ),
-            R_COA=np.array([scp_rcoa]),
-            Rdot_COA=np.array([scp_rratecoa]),
-        )
-        scp_ecf = sksicd.projection.r_rdot_to_ground_plane_mono(
-            -1,
-            scp_set,
-            sarkit.wgs84.geodetic_to_cartesian(burst_info["init_scp_llh"]),
-            sarkit.wgs84.up(burst_info["init_scp_llh"]),
-        )[0]
-        scp_llh = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
-
-        return scp_ecf, scp_llh
-
-    def _calc_grid_unit_vectors(burst_info):
-        # Calc Grid unit vectors based on updated RMA, Position, and GeoData
-        scp_tca = burst_info["time_ca_poly_coefs"][0]
-        scp_ca_pos = npp.polyval(scp_tca, burst_info["arp_poly_coefs"])
-        scp_ca_vel = npp.polyval(scp_tca, npp.polyder(burst_info["arp_poly_coefs"]))
-        los = burst_info["scp_ecf"] - scp_ca_pos
-        row_uvect_ecf = los / npl.norm(los)
-        left = np.cross(scp_ca_pos, scp_ca_vel)
-        look = np.sign(np.dot(left, row_uvect_ecf))
-        spz = -look * np.cross(row_uvect_ecf, scp_ca_vel)
-        uspz = spz / npl.norm(spz)
-
-        return row_uvect_ecf, np.cross(uspz, row_uvect_ecf)
-
     def _compute_burst_id(base_info, swath_info, burst_info):
         """Add `burst_id` to each burst info in `swaths_info` based on DI-MPC-IPFDPM, Issue 2.5, Clause 9.25"""
         t_orb = 12 * 24 * 3600 / 175
@@ -814,12 +768,6 @@ def _collect_burst_info(product_root_node, base_info, swath_info):
             first_line_relative_start,
             swath_info["sensing_start"],
         )
-        burst_info["scp_ecf"], burst_info["scp_llh"] = _update_geo_data_info(
-            swath_info, burst_info
-        )
-        burst_info["row_uvect_ecf"], burst_info["col_uvect_ecf"] = (
-            _calc_grid_unit_vectors(burst_info)
-        )
 
         return [burst_info]
 
@@ -900,13 +848,6 @@ def _collect_burst_info(product_root_node, base_info, swath_info):
             }
 
             burst_info["arp_poly_coefs"] = arp_poly_coefs.T
-
-            burst_info["scp_ecf"], burst_info["scp_llh"] = _update_geo_data_info(
-                swath_info, burst_info
-            )
-            burst_info["row_uvect_ecf"], burst_info["col_uvect_ecf"] = (
-                _calc_grid_unit_vectors(burst_info)
-            )
 
             burst_info_list.append(burst_info)
 
@@ -1235,7 +1176,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         "EarthModel": "WGS_84",
         "SCP": {
             "ECF": burst_info["scp_ecf"],
-            "LLH": burst_info["scp_llh"],
+            "LLH": burst_info["init_scp_llh"],
         },
     }
 
@@ -1244,7 +1185,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
         "Type": swath_info["grid_type"],
         "TimeCOAPoly": burst_info["time_coa_poly_coefs"],
         "Row": {
-            "UVectECF": burst_info["row_uvect_ecf"],
+            # UVectECF added separately
             "SS": swath_info["row_ss"],
             "ImpRespWid": swath_info["row_imp_res_wid"],
             "Sgn": swath_info["row_sgn"],
@@ -1259,7 +1200,7 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
             "WgtFunct": swath_info["row_wgts"],
         },
         "Col": {
-            "UVectECF": burst_info["col_uvect_ecf"],
+            # UVectECF added separately
             "SS": swath_info["col_ss"],
             "ImpRespWid": swath_info["col_imp_res_wid"],
             "Sgn": swath_info["col_sgn"],
@@ -1413,6 +1354,43 @@ def _create_sicd_xml(base_info, swath_info, burst_info, classification):
 
 
 def _update_geo_data(sicd_ew):
+    # Update SCP
+    init_scp = sicd_ew["GeoData"]["SCP"]["ECF"]
+    init_scp_coa_pos = npp.polyval(
+        sicd_ew["Grid"]["TimeCOAPoly"][0, 0], sicd_ew["Position"]["ARPPoly"]
+    )
+    init_scp_coa_vel = npp.polyval(
+        sicd_ew["Grid"]["TimeCOAPoly"][0, 0],
+        npp.polyder(sicd_ew["Position"]["ARPPoly"]),
+    )
+    left = np.cross(init_scp_coa_pos, init_scp_coa_vel)
+    look = np.sign(np.dot(left, init_scp - init_scp_coa_pos))
+    sicd_ew["SCPCOA"]["SideOfTrack"] = "L" if look == +1 else "R"
+
+    scp_ecf, _, success = sksicd.image_to_ground_plane(
+        sicd_ew.elem.getroottree(),
+        [0, 0],
+        sarkit.wgs84.geodetic_to_cartesian(sicd_ew["GeoData"]["SCP"]["LLH"]),
+        sarkit.wgs84.up(sicd_ew["GeoData"]["SCP"]["LLH"]),
+    )
+    assert success
+    sicd_ew["GeoData"]["SCP"]["ECF"] = scp_ecf
+    sicd_ew["GeoData"]["SCP"]["LLH"] = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
+
+    # Calc unit vectors
+    scp_tca = sicd_ew["RMA"]["INCA"]["TimeCAPoly"][0]
+    scp_ca_pos = npp.polyval(scp_tca, sicd_ew["Position"]["ARPPoly"])
+    scp_ca_vel = npp.polyval(scp_tca, npp.polyder(sicd_ew["Position"]["ARPPoly"]))
+    los = scp_ecf - scp_ca_pos
+    row_uvect_ecf = los / npl.norm(los)
+    left = np.cross(scp_ca_pos, scp_ca_vel)
+    assert look == np.sign(np.dot(left, row_uvect_ecf))
+    spz = -look * np.cross(row_uvect_ecf, scp_ca_vel)
+    uspz = spz / npl.norm(spz)
+    col_uvect_ecf = np.cross(uspz, row_uvect_ecf)
+    sicd_ew["Grid"]["Row"]["UVectECF"] = row_uvect_ecf
+    sicd_ew["Grid"]["Col"]["UVectECF"] = col_uvect_ecf
+
     # Update ImageCorners
     num_rows = sicd_ew["ImageData"]["NumRows"]
     num_cols = sicd_ew["ImageData"]["NumCols"]
@@ -1509,7 +1487,7 @@ def main(args=None):
         # Grab the data and write the files
         # Overwrite SAMPLEFORMAT to force TIFFILE not to upcast from complex int16 to complex64
         # Treat as uint32 and handle the conversion later
-        assert swath_info["pixel_type"] != "RE16I_IM16I", (
+        assert swath_info["pixel_type"] == "RE16I_IM16I", (
             "pixel handling assumes 'RE16I_IM16I'"
         )
         with uint_tiff(), tifffile.TiffFile(entry["data"]) as tif:
@@ -1521,10 +1499,10 @@ def main(args=None):
                 base_info, swath_info, burst_info, config.classification.upper()
             )
             sicd_ew = sksicd.ElementWrapper(sicd_xml_obj)
-            # Add SCPCOA node
-            sicd_ew["SCPCOA"] = sksicd.compute_scp_coa(sicd_xml_obj.getroottree())
             # Update ImageCorners and ValidData
             _update_geo_data(sicd_ew)
+            # Add SCPCOA node
+            sicd_ew["SCPCOA"] = sksicd.compute_scp_coa(sicd_xml_obj.getroottree())
 
             # RNIIRS calcs require radiometric info
             if "radiometric" in burst_info:
