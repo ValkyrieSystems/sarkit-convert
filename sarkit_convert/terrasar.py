@@ -448,45 +448,6 @@ def cosar_to_sicd(
         1e-6,
     )
 
-    si_elem = tsx_xml.find("./productInfo/sceneInfo")
-    scc_llh = np.array(
-        [
-            float(si_elem.findtext("./sceneCenterCoord/lat")),
-            float(si_elem.findtext("./sceneCenterCoord/lon")),
-            float(si_elem.findtext("./sceneAverageHeight")),
-        ]
-    )
-    scc_ecf = sarkit.wgs84.geodetic_to_cartesian(scc_llh)
-
-    scp_drsf = drsf_poly[0, 0]
-    scp_tcoa = time_coa_poly[0, 0]
-    scp_delta_t_coa = scp_tcoa - scp_tca
-    scp_varp_ca_mag = npl.norm(npp.polyval(scp_tca, npp.polyder(apc_poly)))
-    scp_rcoa = np.sqrt(scp_rca**2 + scp_drsf * scp_varp_ca_mag**2 * scp_delta_t_coa**2)
-    scp_rratecoa = scp_drsf / scp_rcoa * scp_varp_ca_mag**2 * scp_delta_t_coa
-
-    scp_set = sksicd.projection.ProjectionSetsMono(
-        t_COA=np.array([scp_tcoa]),
-        ARP_COA=np.array([npp.polyval(scp_tcoa, apc_poly)]),
-        VARP_COA=np.array([npp.polyval(scp_tcoa, npp.polyder(apc_poly))]),
-        R_COA=np.array([scp_rcoa]),
-        Rdot_COA=np.array([scp_rratecoa]),
-    )
-    scp_ecf, _, _ = sksicd.projection.r_rdot_to_constant_hae_surface(
-        look, scc_ecf, scp_set, scc_llh[2]
-    )
-    scp_ecf = scp_ecf[0]
-    scp_llh = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
-    scp_ca_pos = npp.polyval(scp_tca, apc_poly)
-    scp_ca_vel = npp.polyval(scp_tca, npp.polyder(apc_poly))
-    los = scp_ecf - scp_ca_pos
-    u_row = los / npl.norm(los)
-    left = np.cross(scp_ca_pos, scp_ca_vel)
-    look = np.sign(np.dot(left, u_row))
-    spz = -look * np.cross(u_row, scp_ca_vel)
-    uspz = spz / npl.norm(spz)
-    u_col = np.cross(uspz, u_row)
-
     # Antenna
     attitude_elem = tsx_xml.find("./platform/attitude")
     attitude_utcs = []
@@ -630,13 +591,8 @@ def cosar_to_sicd(
         "SCPPixel": scp_pixel,
     }
 
-    sicd_ew["GeoData"] = {
-        "EarthModel": "WGS_84",
-        "SCP": {
-            "ECF": scp_ecf,
-            "LLH": scp_llh,
-        },
-    }
+    sicd_ew["GeoData"]["EarthModel"] = "WGS_84"
+    # SCP added below
 
     dc_sgn = np.sign(-doppler_rate_poly[0, 0])
     col_deltakcoa_poly = (
@@ -666,7 +622,7 @@ def cosar_to_sicd(
         "Type": "RGZERO",
         "TimeCOAPoly": time_coa_poly,
         "Row": {
-            "UVectECF": u_row,
+            # UVectECF added below
             "SS": spacings[0],
             "ImpRespWid": row_wid,
             "Sgn": -1,
@@ -681,7 +637,7 @@ def cosar_to_sicd(
             },
         },
         "Col": {
-            "UVectECF": u_col,
+            # UVectECF added below
             "SS": spacings[1],
             "ImpRespWid": col_wid,
             "Sgn": -1,
@@ -812,6 +768,8 @@ def cosar_to_sicd(
         ],
     }
 
+    sicd_ew["SCPCOA"]["SideOfTrack"] = {1: "L", -1: "R"}[look]
+
     sicd_ew["Antenna"]["TwoWay"]["XAxisPoly"] = ant_x_dir_poly
     sicd_ew["Antenna"]["TwoWay"]["YAxisPoly"] = ant_y_dir_poly
     sicd_ew["Antenna"]["TwoWay"]["FreqZero"] = freq_zero
@@ -833,6 +791,38 @@ def cosar_to_sicd(
             "DopCentroidPoly": doppler_centroid_poly,
         },
     }
+
+    # Add SCP
+    si_elem = tsx_xml.find("./productInfo/sceneInfo")
+    scc_llh = np.array(
+        [
+            float(si_elem.findtext("./sceneCenterCoord/lat")),
+            float(si_elem.findtext("./sceneCenterCoord/lon")),
+            float(si_elem.findtext("./sceneAverageHeight")),
+        ]
+    )
+    sicd_ew["GeoData"]["SCP"]["ECF"] = sarkit.wgs84.geodetic_to_cartesian(scc_llh)
+    scp_ecf, _, success = sksicd.image_to_constant_hae_surface(
+        sicd_ew.elem.getroottree(),
+        [0, 0],
+        scc_llh[2],
+    )
+    assert success
+    sicd_ew["GeoData"]["SCP"]["ECF"] = scp_ecf
+    sicd_ew["GeoData"]["SCP"]["LLH"] = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
+
+    # Calc unit vectors
+    scp_ca_pos = npp.polyval(scp_tca, apc_poly)
+    scp_ca_vel = npp.polyval(scp_tca, npp.polyder(apc_poly))
+    los = scp_ecf - scp_ca_pos
+    u_row = los / npl.norm(los)
+    left = np.cross(scp_ca_pos, scp_ca_vel)
+    assert np.sign(np.dot(left, u_row)) == look
+    spz = -look * np.cross(u_row, scp_ca_vel)
+    uspz = spz / npl.norm(spz)
+    u_col = np.cross(uspz, u_row)
+    sicd_ew["Grid"]["Row"]["UVectECF"] = u_row
+    sicd_ew["Grid"]["Col"]["UVectECF"] = u_col
 
     sicd_ew["SCPCOA"] = sksicd.compute_scp_coa(sicd_xml_obj.getroottree())
 
