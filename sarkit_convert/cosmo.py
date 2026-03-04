@@ -363,52 +363,9 @@ def hdf5_to_sicd(
         4,
         1e-6,
     )
-
-    llh_ddm = h5_attrs["Scene Centre Geodetic Coordinates"]
-    scp_drsf = drsf_poly[0, 0]
-    scp_tca = time_ca_poly[0]
     scp_rca = (
         (zd_rg_0 + scp_pixel[0] * intervals[0]) * scipy.constants.speed_of_light / 2
     )
-    scp_tcoa = time_coa_poly[0, 0]
-    scp_delta_t_coa = scp_tcoa - scp_tca
-    scp_varp_ca_mag = npl.norm(npp.polyval(scp_tca, npp.polyder(apc_poly)))
-    scp_rcoa = np.sqrt(scp_rca**2 + scp_drsf * scp_varp_ca_mag**2 * scp_delta_t_coa**2)
-    scp_rratecoa = scp_drsf / scp_rcoa * scp_varp_ca_mag**2 * scp_delta_t_coa
-
-    def obj(hae):
-        scene_pos = sarkit.wgs84.geodetic_to_cartesian([llh_ddm[0], llh_ddm[1], hae])
-        delta_t = np.linspace(-0.01, 0.01)
-        arp_pos = npp.polyval(scp_tca + delta_t, apc_poly).T
-        arp_speed = npl.norm(npp.polyval(scp_tca, npp.polyder(apc_poly)), axis=0)
-        range_ = npl.norm(arp_pos - scene_pos, axis=1)
-        range_poly = npp.polyfit(delta_t, range_, len(apc_poly))
-        test_drsf = 2 * range_poly[2] * range_poly[0] / arp_speed**2
-        return scp_drsf - test_drsf
-
-    scp_hae = scipy.optimize.brentq(obj, -30e3, 30e3)
-    sc_ecf = sarkit.wgs84.geodetic_to_cartesian(llh_ddm)
-    scp_set = sksicd.projection.ProjectionSetsMono(
-        t_COA=np.array([scp_tcoa]),
-        ARP_COA=np.array([npp.polyval(scp_tcoa, apc_poly)]),
-        VARP_COA=np.array([npp.polyval(scp_tcoa, npp.polyder(apc_poly))]),
-        R_COA=np.array([scp_rcoa]),
-        Rdot_COA=np.array([scp_rratecoa]),
-    )
-    scp_ecf, _, _ = sksicd.projection.r_rdot_to_constant_hae_surface(
-        look, sc_ecf, scp_set, scp_hae
-    )
-    scp_ecf = scp_ecf[0]
-    scp_llh = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
-    scp_ca_pos = npp.polyval(scp_tca, apc_poly)
-    scp_ca_vel = npp.polyval(scp_tca, npp.polyder(apc_poly))
-    los = scp_ecf - scp_ca_pos
-    u_row = los / npl.norm(los)
-    left = np.cross(scp_ca_pos, scp_ca_vel)
-    look = np.sign(np.dot(left, u_row))
-    spz = -look * np.cross(u_row, scp_ca_vel)
-    uspz = spz / npl.norm(spz)
-    u_col = np.cross(uspz, u_row)
 
     # Antenna
     attitude_quaternion = np.roll(h5_attrs["Attitude Quaternions"], -1, axis=1)
@@ -594,13 +551,8 @@ def hdf5_to_sicd(
         "SCPPixel": scp_pixel,
     }
 
-    sicd_ew["GeoData"] = {
-        "EarthModel": "WGS_84",
-        "SCP": {
-            "ECF": scp_ecf,
-            "LLH": scp_llh,
-        },
-    }
+    sicd_ew["GeoData"]["EarthModel"] = "WGS_84"
+    # SCP added below
 
     dc_sgn = np.sign(-doppler_rate_poly[0, 0])
     col_deltakcoa_poly = (
@@ -630,7 +582,7 @@ def hdf5_to_sicd(
         "Type": "RGZERO",
         "TimeCOAPoly": time_coa_poly,
         "Row": {
-            "UVectECF": u_row,
+            # UVectECF added below
             "SS": spacings[0],
             "ImpRespWid": row_wid,
             "Sgn": -1,
@@ -645,7 +597,7 @@ def hdf5_to_sicd(
             },
         },
         "Col": {
-            "UVectECF": u_col,
+            # UVectECF added below
             "SS": spacings[1],
             "ImpRespWid": col_wid,
             "Sgn": -1,
@@ -776,6 +728,8 @@ def hdf5_to_sicd(
         ],
     }
 
+    sicd_ew["SCPCOA"]["SideOfTrack"] = h5_attrs["Look Side"][0].upper()
+
     sicd_ew["Antenna"]["TwoWay"]["XAxisPoly"] = ant_x_dir_poly
     sicd_ew["Antenna"]["TwoWay"]["YAxisPoly"] = ant_y_dir_poly
     sicd_ew["Antenna"]["TwoWay"]["FreqZero"] = freq_zero
@@ -797,6 +751,46 @@ def hdf5_to_sicd(
             "DopCentroidPoly": doppler_centroid_poly,
         },
     }
+
+    # Add SCP
+    llh_ddm = h5_attrs["Scene Centre Geodetic Coordinates"]
+    scp_tca = time_ca_poly[0]
+    scp_drsf = drsf_poly[0, 0]
+
+    def obj(hae):
+        scene_pos = sarkit.wgs84.geodetic_to_cartesian([llh_ddm[0], llh_ddm[1], hae])
+        delta_t = np.linspace(-0.01, 0.01)
+        arp_pos = npp.polyval(scp_tca + delta_t, apc_poly).T
+        arp_speed = npl.norm(npp.polyval(scp_tca, npp.polyder(apc_poly)), axis=0)
+        range_ = npl.norm(arp_pos - scene_pos, axis=1)
+        range_poly = npp.polyfit(delta_t, range_, len(apc_poly))
+        test_drsf = 2 * range_poly[2] * range_poly[0] / arp_speed**2
+        return scp_drsf - test_drsf
+
+    scp_hae = scipy.optimize.brentq(obj, -30e3, 30e3)
+    sc_ecf = sarkit.wgs84.geodetic_to_cartesian(llh_ddm)
+    sicd_ew["GeoData"]["SCP"]["ECF"] = sc_ecf
+    scp_ecf, _, success = sksicd.image_to_constant_hae_surface(
+        sicd_ew.elem.getroottree(),
+        [0, 0],
+        scp_hae,
+    )
+    assert success
+    sicd_ew["GeoData"]["SCP"]["ECF"] = scp_ecf
+    sicd_ew["GeoData"]["SCP"]["LLH"] = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
+
+    # Calc unit vectors
+    scp_ca_pos = npp.polyval(scp_tca, apc_poly)
+    scp_ca_vel = npp.polyval(scp_tca, npp.polyder(apc_poly))
+    los = scp_ecf - scp_ca_pos
+    u_row = los / npl.norm(los)
+    left = np.cross(scp_ca_pos, scp_ca_vel)
+    assert np.sign(np.dot(left, u_row)) == look
+    spz = -look * np.cross(u_row, scp_ca_vel)
+    uspz = spz / npl.norm(spz)
+    u_col = np.cross(uspz, u_row)
+    sicd_ew["Grid"]["Row"]["UVectECF"] = u_row
+    sicd_ew["Grid"]["Col"]["UVectECF"] = u_col
 
     sicd_ew["SCPCOA"] = sksicd.compute_scp_coa(sicd_xml_obj.getroottree())
 

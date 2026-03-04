@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed cosmo unit vector computation to use velocity at closest approach
+- Bug in pixel_type assertion preventing `sarkit_convert.sentinel` from running
 
 
 ## [0.3.1] - 2026-02-04
