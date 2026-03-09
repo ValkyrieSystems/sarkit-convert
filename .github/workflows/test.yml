@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         lfs: false  # Save GitHub LFS bandwidth
 
@@ -38,7 +38,7 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         lfs: false  # Save GitHub LFS bandwidth
     - name: Setup PDM and Python
@@ -62,7 +62,7 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         lfs: false  # Save GitHub LFS bandwidth
     - name: Setup PDM and Python
