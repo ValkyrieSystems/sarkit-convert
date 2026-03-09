@@ -479,40 +479,6 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
         x_coords, y_coords, col_deltak_coa_poly, col_imp_res_bw, col_ss
     )
 
-    # Adjust SCP
-    scp_drsf = dr_sf_poly[0, 0]
-    scp_tca = time_ca_poly[0]
-    scp_tcoa = time_coa_poly[0, 0]
-    scp_delta_t_coa = scp_tcoa - scp_tca
-    scp_varp_ca_mag = npl.norm(npp.polyval(scp_tca, npp.polyder(apc_poly)))
-    scp_rcoa = np.sqrt(r_ca_scp**2 + scp_drsf * scp_varp_ca_mag**2 * scp_delta_t_coa**2)
-    scp_rratecoa = scp_drsf / scp_rcoa * scp_varp_ca_mag**2 * scp_delta_t_coa
-    scp_set = sksicd.projection.ProjectionSetsMono(
-        t_COA=np.array([scp_tcoa]),
-        ARP_COA=np.array([npp.polyval(scp_tcoa, apc_poly)]),
-        VARP_COA=np.array([npp.polyval(scp_tcoa, npp.polyder(apc_poly))]),
-        R_COA=np.array([scp_rcoa]),
-        Rdot_COA=np.array([scp_rratecoa]),
-    )
-    scp_ecf = sksicd.projection.r_rdot_to_ground_plane_mono(
-        look,
-        scp_set,
-        sarkit.wgs84.geodetic_to_cartesian(init_scp_llh),
-        sarkit.wgs84.up(init_scp_llh),
-    )[0]
-    scp_llh = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
-
-    # Calc unit vectors
-    scp_ca_pos = npp.polyval(scp_tca, apc_poly)
-    scp_ca_vel = npp.polyval(scp_tca, npp.polyder(apc_poly))
-    los = scp_ecf - scp_ca_pos
-    row_uvect_ecf = los / npl.norm(los)
-    left = np.cross(scp_ca_pos, scp_ca_vel)
-    look = np.sign(np.dot(left, row_uvect_ecf))
-    spz = -look * np.cross(row_uvect_ecf, scp_ca_vel)
-    uspz = spz / npl.norm(spz)
-    col_uvect_ecf = np.cross(uspz, row_uvect_ecf)
-
     # Radiometric
     beta_zero_sf_poly = [
         [
@@ -552,20 +518,15 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
         "SCPPixel": scp_pixel,
     }
 
-    sicd_ew["GeoData"] = {
-        "EarthModel": "WGS_84",
-        "SCP": {
-            "ECF": scp_ecf,
-            "LLH": scp_llh,
-        },
-    }
+    sicd_ew["GeoData"]["EarthModel"] = "WGS_84"
+    # SCP added below
 
     sicd_ew["Grid"] = {
         "ImagePlane": image_plane,
         "Type": grid_type,
         "TimeCOAPoly": time_coa_poly,
         "Row": {
-            "UVectECF": row_uvect_ecf,
+            # UVectECF added below
             "SS": row_ss,
             "ImpRespWid": row_imp_res_wid,
             "Sgn": row_sgn,
@@ -579,7 +540,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
             },
         },
         "Col": {
-            "UVectECF": col_uvect_ecf,
+            # UVectECF added below
             "SS": col_ss,
             "ImpRespWid": col_imp_res_wid,
             "Sgn": col_sgn,
@@ -675,6 +636,8 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
         ],
     }
 
+    sicd_ew["SCPCOA"]["SideOfTrack"] = h5_attrs["look_side"][0].upper()
+
     sicd_ew["RMA"] = {
         "RMAlgoType": rma_algo_type,
         "ImageType": image_type,
@@ -687,6 +650,31 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
             "DopCentroidCOA": dop_centroid_coa,
         },
     }
+
+    # Adjust SCP
+    scp_ecf, _, success = sksicd.image_to_ground_plane(
+        sicd_ew.elem.getroottree(),
+        [0, 0],
+        sarkit.wgs84.geodetic_to_cartesian(init_scp_llh),
+        sarkit.wgs84.up(init_scp_llh),
+    )
+    assert success
+    sicd_ew["GeoData"]["SCP"]["ECF"] = scp_ecf
+    sicd_ew["GeoData"]["SCP"]["LLH"] = sarkit.wgs84.cartesian_to_geodetic(scp_ecf)
+
+    # Calc unit vectors
+    scp_tca = time_ca_poly[0]
+    scp_ca_pos = npp.polyval(scp_tca, apc_poly)
+    scp_ca_vel = npp.polyval(scp_tca, npp.polyder(apc_poly))
+    los = scp_ecf - scp_ca_pos
+    row_uvect_ecf = los / npl.norm(los)
+    left = np.cross(scp_ca_pos, scp_ca_vel)
+    assert np.sign(np.dot(left, row_uvect_ecf)) == look
+    spz = -look * np.cross(row_uvect_ecf, scp_ca_vel)
+    uspz = spz / npl.norm(spz)
+    col_uvect_ecf = np.cross(uspz, row_uvect_ecf)
+    sicd_ew["Grid"]["Row"]["UVectECF"] = row_uvect_ecf
+    sicd_ew["Grid"]["Col"]["UVectECF"] = col_uvect_ecf
 
     sicd_ew["SCPCOA"] = sksicd.compute_scp_coa(sicd_xml_obj.getroottree())
 
