@@ -235,12 +235,11 @@ def hdf5_to_sicd(
         / scipy.constants.speed_of_light
     )
     row_wid = 1 / row_bw
-    col_bw = (
-        min(
-            h5_attrs[img_str]["Azimuth Focusing Transition Bandwidth"] * intervals[1], 1
-        )
-        / spacings[1]
-    )
+    if mission_id == "CSK":
+        az_focus_str = "Azimuth Focusing Transition Bandwidth"
+    else:
+        az_focus_str = "Azimuth Focusing Bandwidth"
+    col_bw = min(h5_attrs[img_str][az_focus_str] * intervals[1], 1) / spacings[1]
     col_wid = 1 / col_bw
 
     # CA and COA times
@@ -256,6 +255,47 @@ def hdf5_to_sicd(
     grid_coords = (grid_indices - scp_pixel) * spacings
     time_coords = grid_indices[:, ::-look] * intervals + np.array([zd_rg_0, zd_az_0])
     start_minus_ref = (collection_start_time - ref_time).total_seconds()
+
+    # estimate linear doppler rate term in case we can't find it in the metadata
+    time_ca_samps = time_coords[..., 1] - start_minus_ref
+    time_ca_poly = npp.polyfit(
+        grid_coords[..., 1].flatten(), time_ca_samps.flatten(), 1
+    )
+    llh_ddm = h5_attrs["Scene Centre Geodetic Coordinates"]
+    scp_tca = time_ca_poly[0]
+    scp_ecef = sarkit.wgs84.geodetic_to_cartesian(llh_ddm)
+    arp_pos = npp.polyval(scp_tca, apc_poly)
+    arp_vel = npp.polyval(scp_tca, npp.polyder(apc_poly, m=1))
+    arp_acc = npp.polyval(scp_tca, npp.polyder(apc_poly, m=2))
+    los = arp_pos - scp_ecef
+    r_ca = np.linalg.norm(los)
+    ulos = los / r_ca
+    vmag = np.linalg.norm(arp_vel)
+    rddot = np.sum(arp_acc * ulos) + vmag**2 / r_ca
+    range_rate_per_hz = -scipy.constants.speed_of_light / (2 * center_frequency)
+    drate = rddot / range_rate_per_hz
+
+    def get_rate_polys(attrs):
+        if "Doppler Rate vs Range Time Polynomial" in attrs:
+            rate_range_poly = attrs["Doppler Rate vs Range Time Polynomial"]
+            rate_range_source = "Source Metadata"
+        else:
+            rate_range_poly = [drate]
+            rate_range_source = "Geometric Estimate"
+
+        if "Doppler Rate vs Azimuth Time Polynomial" in attrs:
+            rate_azimuth_poly = attrs["Doppler Rate vs Azimuth Time Polynomial"]
+            rate_azimuth_source = "Source Metadata"
+        else:
+            rate_azimuth_poly = [drate]
+            rate_azimuth_source = "Geometric Estimate"
+
+        return (
+            rate_range_poly,
+            rate_range_source,
+            rate_azimuth_poly,
+            rate_azimuth_source,
+        )
 
     if mission_id == "CSG":
         range_ref = h5_attrs[img_str]["Range Polynomial Reference Time"]
@@ -275,8 +315,9 @@ def hdf5_to_sicd(
             raw_times - azimuth_ref, centroid_azimuth_poly
         )
 
-        rate_range_poly = h5_attrs[img_str]["Doppler Rate vs Range Time Polynomial"]
-        rate_azimuth_poly = h5_attrs[img_str]["Doppler Rate vs Azimuth Time Polynomial"]
+        rate_range_poly, rate_range_source, rate_azimuth_poly, rate_azimuth_source = (
+            get_rate_polys(h5_attrs[img_str])
+        )
         raw_doppler_rate = npp.polyval(raw_times - azimuth_ref, rate_azimuth_poly)
 
         zd_times = raw_times - raw_doppler_centroid / raw_doppler_rate
@@ -308,15 +349,15 @@ def hdf5_to_sicd(
             - (centroid_range_poly[0] + centroid_azimuth_poly[0]) / 2
         )
 
-        rate_range_poly = h5_attrs["Doppler Rate vs Range Time Polynomial"]
-        rate_azimuth_poly = h5_attrs["Doppler Rate vs Azimuth Time Polynomial"]
+        rate_range_poly, rate_range_source, rate_azimuth_poly, rate_azimuth_source = (
+            get_rate_polys(h5_attrs)
+        )
         doppler_rate = (
             npp.polyval(time_coords[..., 0] - range_ref, rate_range_poly)
             + npp.polyval(time_coords[..., 1] - azimuth_ref, rate_azimuth_poly)
             - (rate_range_poly[0] + rate_azimuth_poly[0]) / 2
         )
 
-    range_rate_per_hz = -scipy.constants.speed_of_light / (2 * center_frequency)
     range_rate = doppler_centroid * range_rate_per_hz
     range_rate_rate = doppler_rate * range_rate_per_hz
     doppler_centroid_poly = utils.polyfit2d_tol(
@@ -334,10 +375,6 @@ def hdf5_to_sicd(
         4,
         4,
         1e-3,
-    )
-    time_ca_samps = time_coords[..., 1] - start_minus_ref
-    time_ca_poly = npp.polyfit(
-        grid_coords[..., 1].flatten(), time_ca_samps.flatten(), 1
     )
     time_coa_samps = time_ca_samps + range_rate / range_rate_rate
     time_coa_poly = utils.polyfit2d_tol(
@@ -472,7 +509,7 @@ def hdf5_to_sicd(
     fit_order = 4
 
     def fit_steering(code_change_lines, dcs):
-        if len(code_change_lines) > 1:
+        if np.array(code_change_lines).size > 1:
             times = code_change_lines / prf
             return npp.polyfit(times, dcs, fit_order)
         else:
@@ -724,6 +761,10 @@ def hdf5_to_sicd(
             {
                 "Type": f"sarkit-convert {__version__} @ {now}",
                 "Applied": True,
+                "Parameter": [
+                    ("Doppler Rate vs Range source", rate_range_source),
+                    ("Doppler Rate vs Azimuth source", rate_azimuth_source),
+                ],
             },
         ],
     }
@@ -753,8 +794,6 @@ def hdf5_to_sicd(
     }
 
     # Add SCP
-    llh_ddm = h5_attrs["Scene Centre Geodetic Coordinates"]
-    scp_tca = time_ca_poly[0]
     scp_drsf = drsf_poly[0, 0]
 
     def obj(hae):
