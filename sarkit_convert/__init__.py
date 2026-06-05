@@ -9,7 +9,6 @@ The main namespace is almost empty by design.
 
    * - ``__version__``
      - SARkit-convert version string
-
 """
 
 from sarkit_convert._version import __version__

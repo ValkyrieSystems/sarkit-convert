@@ -19,22 +19,21 @@ def _checksum_val(c):
 def parse_tle(lines, lineno=1):
     """Parse a TLE into a dictionary.
 
-    Args
-    ----
-    lines: list of str
+    Parameters
+    ----------
+    lines : list of str
         The lines of the TLE (additional lines allowed)
-    lineno: int (optional)
+    lineno : int, optional
         The line number of the first line for error reporting
 
     Returns
     -------
-    tle: dict
+    tle : dict
         dict of string to string of TLE fields
-    remaining_lines: list of str
+    remaining_lines : list of str
         remaining lines from input
-    lineno_out: int
+    lineno_out : int
         line number of the first of remaining_lines
-
     """
     retval = {}
     if lines[0][0] != "1":
