@@ -11,7 +11,6 @@ During development, the following documents were considered:
 
 In addition, SARPy was consulted on how to use the TSX metadata to compute SICD
 metadata that would predict the complex data characteristics
-
 """
 
 import argparse
@@ -69,11 +68,11 @@ def _compute_apc_poly(tsx_xml, start_time, stop_time):
 
     Parameters
     ----------
-    tsx_xml: lxml.Element
+    tsx_xml : lxml.etree.Element
         The TSX xml
-    start_time: datetime.datetime
+    start_time : datetime.datetime
         The start time to fit
-    stop_time: datetime.datetime
+    stop_time : datetime.datetime
         The end time to fit
 
     Returns

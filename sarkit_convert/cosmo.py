@@ -12,7 +12,6 @@ During development, the following documents were considered:
 
 In addition, SARPy was consulted on how to use the CSK/CSG to compute SICD
 metadata that would predict the complex data characteristics
-
 """
 
 import argparse
@@ -104,13 +103,13 @@ def compute_apc_poly(h5_attrs, ref_time, start_time, stop_time):
 
     Parameters
     ----------
-    h5_attrs: dict
+    h5_attrs : dict
         The collection metadata
-    ref_time: datetime.datetime
+    ref_time : datetime.datetime
         The time at which the orbit goes through the `apc_pos`.
-    start_time: datetime.datetime
+    start_time : datetime.datetime
         The start time to fit.
-    stop_time: datetime.datetime
+    stop_time : datetime.datetime
         The end time to fit.
 
     Returns

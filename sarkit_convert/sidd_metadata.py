@@ -113,7 +113,6 @@ def sidd_projection_from_geotiff(
     See:
       * http://geotiff.maptools.org/spec/geotiff2.5.html
       * http://geotiff.maptools.org/spec/geotiff2.6.html
-
     """
     # Image Coordinates are [I J K 1] -> (column, row, vertical,  1)
     image_coords = np.stack(

@@ -4,7 +4,6 @@ Sentinel SAFE to SICD
 =====================
 
 Convert a complex image(s) from the Sentinel SAFE to SICD(s).
-
 """
 
 import argparse

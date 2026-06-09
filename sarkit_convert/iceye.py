@@ -6,7 +6,6 @@ Iceye Complex to SICD
 Convert a complex image from the Iceye HD5 SLC into SICD.
 
 Note: In the development of this converter "Iceye Product Metadata" description (v2.1, v2.2, v2.4, v2.5) was considered.
-
 """
 
 import argparse
@@ -71,11 +70,11 @@ def compute_apc_poly(h5_attrs, start_time, stop_time):
 
     Parameters
     ----------
-    h5_attrs: dict
+    h5_attrs : dict
         The collection metadata
-    start_time: float
+    start_time : float
         The start time to fit.
-    stop_time: float
+    stop_time : float
         The end time to fit.
 
     Returns
@@ -198,15 +197,14 @@ def hdf5_to_sicd(h5_filename, sicd_filename, classification, ostaid):
 
     Parameters
     ----------
-    h5_filename: str
+    h5_filename : str
         path of the input HDF5 file
-    sicd_filename: str
+    sicd_filename : str
         path of the output SICD file.
-    classification: str
+    classification : str
         content of the /SICD/CollectionInfo/Classification node in the SICD XML.
-    ostaid: str
+    ostaid : str
         content of the originating station ID (OSTAID) field of the NITF header.
-
     """
     with h5py.File(h5_filename, "r") as h5file:
         h5_attrs = _extract_attributes(h5file)
