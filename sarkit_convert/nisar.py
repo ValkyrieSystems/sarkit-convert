@@ -6,7 +6,6 @@ NISAR Complex to SICD
 Convert a complex image from the NISAR HD5 RSLC into SICD.
 
 Note: In the development of this converter "NISAR_D-102268_RevE_NASA_SDS_Product_Specification_L1_RSLC" was used.
-
 """
 
 import argparse
@@ -82,13 +81,13 @@ def compute_apc_poly(h5dict, start_time, stop_time, pad_time=2):
 
     Parameters
     ----------
-    h5dict: dict
+    h5dict : dict
         The collection metadata
-    start_time: datetime.datetime
+    start_time : datetime.datetime
         The start time to fit.
-    stop_time: datetime.datetime
+    stop_time : datetime.datetime
         The end time to fit.
-    pad_time: float
+    pad_time : float
         Extra time to fit before start_time and after stop_time
 
     Returns

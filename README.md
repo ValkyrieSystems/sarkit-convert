@@ -19,7 +19,7 @@ declared in the packaging extras defined in the [`pyproject.toml`](./pyproject.t
 `sarkit-convert` can be installed with one or more of these dependencies using pip:
 
 ```sh
-$ python -m pip install sarkit-convert[cosmo,iceye,sentinel,terrasar]
+$ python -m pip install sarkit-convert[cosmo,iceye,nisar,sentinel,terrasar]
 $ python -m pip install sarkit-convert[all]
 ```
 

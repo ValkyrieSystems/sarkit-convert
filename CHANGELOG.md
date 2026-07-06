@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Initial NISAR converter based upon first 4 ASF sample datasets
+
 ### Changed
 - Modify the cosmo converter to accommodate some off nominal metadata.
 
@@ -15,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Utility for parsing TLEs in `sarkit_convert.tle`
-- Initial NISAR converter based upon first 4 ASF sample datasets
 
 ### Fixed
 - Fixed cosmo unit vector computation to use velocity at closest approach
