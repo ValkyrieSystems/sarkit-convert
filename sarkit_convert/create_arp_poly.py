@@ -59,24 +59,24 @@ def create_arp_poly(
     """Create an aperture reference position polynomial from a subset of metadata
     and orbital parameters
 
-    Args
-    ----
-    scp_pos_ecef: ndarray, shape=(3, )
+    Parameters
+    ----------
+    scp_pos_ecef : ndarray, shape=(3, )
         Scene Center Point position in ecef cartesian coordinates
-    incidence_deg: float
+    incidence_deg : float
         Incidence Angle to SCP during imaging
-    look_direction: float
+    look_direction : float
         SICD SideOfTrack conveyed as float (LEFT -> 1, RIGHT -> -1)
-    orbit_height_m: float
+    orbit_height_m : float
         Orbital height in meters.  Assumed to be constant
-    orbit_inclination_deg: float
+    orbit_inclination_deg : float
         Orbital inclination in degrees
-    angle_to_north_deg: float|None
+    angle_to_north_deg : float or None
         Imaging angle clockwise from north in degrees.  Equivalent to SICD/SCPCOA/AzimAng
-    orbit_direction: float|None
+    orbit_direction : float or None
         Indicates whether the arp velocity should be ascending or descending.
         Sign of this value will determine the sign of the velocity z component
-    doppler_cone_angle_deg: float|None
+    doppler_cone_angle_deg : float or None
         Doppler cone angle at SCP COA in degrees.  Equivalent to SICD/SCPCOA/DopplerConeAng
 
     Returns

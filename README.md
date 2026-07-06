@@ -13,9 +13,29 @@
 
 **sarkit-convert** is a Python library for converting SAR data to standard formats.
 
+## Install
+While some `sarkit-convert` functionality is available using base dependencies, many converter-specific dependencies are
+declared in the packaging extras defined in the [`pyproject.toml`](./pyproject.toml).
+`sarkit-convert` can be installed with one or more of these dependencies using pip:
+
+```sh
+$ python -m pip install sarkit-convert[cosmo,iceye,sentinel,terrasar]
+$ python -m pip install sarkit-convert[all]
+```
+
+`sarkit-convert` can also be installed using conda and the conda-forge channel:
+
+```sh
+$ conda install --channel conda-forge sarkit-convert
+```
+
+The conda-forge package comes with all packaging extras.
+
 ## License
 This repository is licensed under the [MIT license](./LICENSE).
 
+## Contributing and Development
+Contributions are welcome.
 A few tips for getting started using [PDM](https://pdm-project.org/en/latest/) are below:
 
 

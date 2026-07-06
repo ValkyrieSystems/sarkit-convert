@@ -4,7 +4,6 @@ Utility functions for SICD converters
 =====================================
 
 Common utility functions for use in SICD converters
-
 """
 
 import itertools
@@ -77,21 +76,21 @@ def polyfit2d(x, y, z, order1, order2):
 def polyfit2d_tol(x, y, z, max_order_x, max_order_y, tol, strict_tol=False):
     """Fits 2D polys of minimum order to bring the maximum residual under tol.
 
-    Args
-    ----
-    x: array-like
+    Parameters
+    ----------
+    x : array-like
         First independent variable values. One dimensional.
-    y: array-like
+    y : array-like
         Second independent variable values. One dimensional.
-    z: array-like
+    z : array-like
         Dependent variable values. Leading dimension must have same size as `x` and `y` .
-    max_order_x: int
+    max_order_x : int
         The maximum order in `x` to consider
-    max_order_y: int
+    max_order_y : int
         The maximum order in `y` to consider
-    tol: float
+    tol : float
         The maximum residual requested.
-    strict_tol: bool
+    strict_tol : bool
         ``True`` if an exception should be raised if `tol` is not met with allowed orders.
 
         If ``False``, return best fitting polynomial of allowed order.
@@ -105,7 +104,6 @@ def polyfit2d_tol(x, y, z, max_order_x, max_order_y, tol, strict_tol=False):
     ------
     `ValueError`
         If `strict_tol` and tolerance is not reached.
-
     """
     orders = sorted(
         list(itertools.product(range(max_order_x + 1), range(max_order_y + 1))),
@@ -127,11 +125,11 @@ def polyfit2d_tol(x, y, z, max_order_x, max_order_y, tol, strict_tol=False):
 def polyshift(poly, new_origin):
     """Returns new polynomial with shifted origin
 
-    Args
-    ----
-    poly: array-like
+    Parameters
+    ----------
+    poly : array-like
         1d polynomial coefficients, with constant term first
-    new_origin: float
+    new_origin : float
         location in `poly`'s domain to place new polynomial's origin
 
     Returns
@@ -161,15 +159,14 @@ def broadening_from_amp(amp_vals, threshold_db=None):
 
     Parameters
     ----------
-    amp_vals: array-like
+    amp_vals : array-like
         window amplitudes
-    threshold_db: float, optional
+    threshold_db : float, optional
         threshold to use to compute broadening (Default: 10*log10(0.5))
 
     Returns
     -------
     float
-
     """
     if threshold_db is None:
         threshold = np.sqrt(0.5)
@@ -212,7 +209,8 @@ def _get_sigma0_noise(sicd_ew):
 def _get_default_signal_estimate(sicd_ew):
     """Gets default signal for use in the RNIIRS calculation.
 
-    This will be 1.0 for copolar (or unknown) collections, and 0.25 for cross-pole collections."""
+    This will be 1.0 for copolar (or unknown) collections, and 0.25 for cross-pole collections.
+    """
 
     pol = sicd_ew["ImageFormation"].get("TxRcvPolarizationProc", None)
     if pol is None or ":" not in pol:
@@ -231,7 +229,6 @@ def _estimate_rniirs(information_density):
 
     To maintain positivity of the estimated rniirs, this transitions to a linear
     model.
-
     """
     a = RNIIRS_FIT_PARAMETERS
     iim_transition = np.exp(1 - np.log(2) * a[0] / a[1])
