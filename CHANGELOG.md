@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.5.1] - 2026-07-10
+
 ### Changed
 - Changed minimum versions of `nisar` extra dependencies to better match other packaging extras
 
@@ -68,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Basic converters for CSK/CSG, ICEYE, Sentinel-1, and TerraSAR-X/TanDEM-X
 
-[unreleased]: https://github.com/ValkyrieSystems/sarkit-convert/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/ValkyrieSystems/sarkit-convert/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/ValkyrieSystems/sarkit-convert/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/ValkyrieSystems/sarkit-convert/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ValkyrieSystems/sarkit-convert/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/ValkyrieSystems/sarkit-convert/compare/v0.3.0...v0.3.1
