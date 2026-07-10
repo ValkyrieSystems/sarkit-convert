@@ -42,9 +42,9 @@ cosmo = [
 ]
 
 nisar = [
-    "h5py>=3.12.1",
+    "h5py>=3.11.0",
     "python-dateutil>=2.9.0",
-    "shapely>=2.0.2",
+    "shapely>=2.0.6",
 ]
 
 terrasar = [
