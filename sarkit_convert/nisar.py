@@ -59,6 +59,8 @@ def _dictify_hdf(h5_obj, max_size=2**20):
     elif isinstance(h5_obj, h5py.Group):
         for key, value in h5_obj.items():  # Iterate over keys
             result[key] = _dictify_hdf(value)
+    elif isinstance(h5_obj, h5py.Datatype):
+        pass  # TODO
     else:  # Attribute
         for key, value in h5_obj.items():  # Iterate over keys
             result[key] = _decode_hdf_type(value)
@@ -95,7 +97,8 @@ def compute_apc_poly(h5dict, start_time, stop_time, pad_time=2):
     `numpy.ndarray`, shape=(6, 3)
         APC poly
     """
-    orbit_dict = h5dict["science"]["LSAR"]["RSLC"]["metadata"]["orbit"]
+    band = _determine_band(h5dict)
+    orbit_dict = h5dict["science"][band]["RSLC"]["metadata"]["orbit"]
     times = orbit_dict["time"]["__value__"]
     positions = orbit_dict["position"]["__value__"]
     velocities = orbit_dict["velocity"]["__value__"]
@@ -121,18 +124,17 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     with h5py.File(h5_filename, "r") as h5file:
         h5dict = _dictify_hdf(h5file)
 
+    band = _determine_band(h5dict)
     freq_str = "frequency" + frequency
     # Timeline
     first_zero_doppler_time = dateutil.parser.parse(
-        h5dict["science"]["LSAR"]["identification"]["zeroDopplerStartTime"]["__value__"]
+        h5dict["science"][band]["identification"]["zeroDopplerStartTime"]["__value__"]
     )
     last_zero_doppler_time = dateutil.parser.parse(
-        h5dict["science"]["LSAR"]["identification"]["zeroDopplerEndTime"]["__value__"]
+        h5dict["science"][band]["identification"]["zeroDopplerEndTime"]["__value__"]
     )
     look = {"left": 1, "right": -1}[
-        h5dict["science"]["LSAR"]["identification"]["lookDirection"][
-            "__value__"
-        ].lower()
+        h5dict["science"][band]["identification"]["lookDirection"]["__value__"].lower()
     ]
 
     # Maximum integration time derived from finest resolution,
@@ -151,21 +153,21 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     collect_duration = (collect_stop - collect_start).total_seconds()
 
     # Collection Info
-    collector_name = h5dict["science"]["LSAR"]["identification"]["instrumentName"][
+    collector_name = h5dict["science"][band]["identification"]["instrumentName"][
         "__value__"
     ]
-    core_name = h5dict["science"]["LSAR"]["identification"]["granuleId"]["__value__"]
+    core_name = h5dict["science"][band]["identification"]["granuleId"]["__value__"]
     radar_mode_id = core_name[31:35]
     radar_mode_type = "STRIPMAP"
 
     # Creation Info
-    creation_application = h5dict["science"]["LSAR"]["RSLC"]["metadata"][
+    creation_application = h5dict["science"][band]["RSLC"]["metadata"][
         "processingInformation"
     ]["algorithms"]["softwareVersion"]["__value__"]
     creation_date_time = dateutil.parser.parse(
-        h5dict["science"]["LSAR"]["identification"]["processingDateTime"]["__value__"]
+        h5dict["science"][band]["identification"]["processingDateTime"]["__value__"]
     )
-    creation_site = h5dict["science"]["LSAR"]["identification"]["processingCenter"][
+    creation_site = h5dict["science"][band]["identification"]["processingCenter"][
         "__value__"
     ]
 
@@ -173,10 +175,10 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     apc_poly = compute_apc_poly(h5dict, collect_start, collect_stop)
 
     # Radar Collection
-    acq_center_frequency = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
+    acq_center_frequency = h5dict["science"][band]["RSLC"]["swaths"][freq_str][
         "acquiredCenterFrequency"
     ]["__value__"]
-    acq_rf_bw = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
+    acq_rf_bw = h5dict["science"][band]["RSLC"]["swaths"][freq_str][
         "acquiredRangeBandwidth"
     ]["__value__"]
     acq_tx_freq_min = acq_center_frequency - 0.5 * acq_rf_bw
@@ -187,7 +189,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     tx_rcv_polarization = f"{tx_polarization}:{rcv_polarization}"
 
     # Image Data
-    complex_data = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][polarization]
+    complex_data = h5dict["science"][band]["RSLC"]["swaths"][freq_str][polarization]
     assert complex_data["__dtype__"] == "complex64"
     pixel_type = "RE32F_IM32F"
     num_cols, num_rows = complex_data["__shape__"]
@@ -198,30 +200,30 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     # Image Formation
     tx_rcv_polarization_proc = tx_rcv_polarization
     t_start_proc = 0
-    proc_center_frequency = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
+    proc_center_frequency = h5dict["science"][band]["RSLC"]["swaths"][freq_str][
         "processedCenterFrequency"
     ]["__value__"]
-    proc_rg_bw = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
+    proc_rg_bw = h5dict["science"][band]["RSLC"]["swaths"][freq_str][
         "processedRangeBandwidth"
     ]["__value__"]
-    proc_az_bw = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
+    proc_az_bw = h5dict["science"][band]["RSLC"]["swaths"][freq_str][
         "processedAzimuthBandwidth"
     ]["__value__"]
     proc_freq_min = proc_center_frequency - 0.5 * proc_rg_bw
     proc_freq_max = proc_center_frequency + 0.5 * proc_rg_bw
 
     # Some Grid
-    img_zd_dict = h5dict["science"]["LSAR"]["RSLC"]["swaths"]["zeroDopplerTime"]
+    img_zd_dict = h5dict["science"][band]["RSLC"]["swaths"]["zeroDopplerTime"]
     img_zd_values = img_zd_dict["__value__"]
     img_zd_epoch = _get_ref_time(img_zd_dict["units"])
     img_zd = img_zd_values + (img_zd_epoch - collect_start).total_seconds()
-    img_zd_interval = h5dict["science"]["LSAR"]["RSLC"]["swaths"][
+    img_zd_interval = h5dict["science"][band]["RSLC"]["swaths"][
         "zeroDopplerTimeSpacing"
     ]["__value__"]
-    img_rg = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str]["slantRange"][
+    img_rg = h5dict["science"][band]["RSLC"]["swaths"][freq_str]["slantRange"][
         "__value__"
     ]
-    row_ss = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str]["slantRangeSpacing"][
+    row_ss = h5dict["science"][band]["RSLC"]["swaths"][freq_str]["slantRangeSpacing"][
         "__value__"
     ]
     scp_rg = img_rg[scp_pixel[0]]
@@ -229,7 +231,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
 
     # Compute scene points
     bounding_polygon = shapely.from_wkt(
-        h5dict["science"]["LSAR"]["identification"]["boundingPolygon"]["__value__"]
+        h5dict["science"][band]["identification"]["boundingPolygon"]["__value__"]
     )
     bp_ecef = sarkit.wgs84.geodetic_to_cartesian(
         np.array(bounding_polygon.exterior.coords)[:, [1, 0, 2]]
@@ -243,7 +245,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     # In the datasets provided thus far they've been all zero and am unsure
     # what the following calculations would do with varying heights
     #
-    # reference_terrain_height = h5dict["science"]["LSAR"]["RSLC"]["metadata"][
+    # reference_terrain_height = h5dict["science"][band]["RSLC"]["metadata"][
     #    "processingInformation"
     # ]["parameters"]["referenceTerrainHeight"]["__value__"]
     # heights = reference_terrain_height[np.newaxis, :]
@@ -279,13 +281,13 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
     drsf = rrdot * r_ca / vmag**2
     col_ss = np.mean(vmag) * np.abs(img_zd_interval) * np.mean(drsf)
 
-    doppler_centroid = h5dict["science"]["LSAR"]["RSLC"]["metadata"][
+    doppler_centroid = h5dict["science"][band]["RSLC"]["metadata"][
         "processingInformation"
     ]["parameters"][freq_str]["dopplerCentroid"]["__value__"].T
-    dc_range = h5dict["science"]["LSAR"]["RSLC"]["metadata"]["processingInformation"][
+    dc_range = h5dict["science"][band]["RSLC"]["metadata"]["processingInformation"][
         "parameters"
     ][freq_str]["slantRange"]["__value__"]
-    zdt_dict = h5dict["science"]["LSAR"]["RSLC"]["metadata"]["processingInformation"][
+    zdt_dict = h5dict["science"][band]["RSLC"]["metadata"]["processingInformation"][
         "parameters"
     ][freq_str]["zeroDopplerTime"]
     zdt_values = zdt_dict["__value__"]
@@ -391,7 +393,7 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
         [utils.polyshift(apc_poly[:, ndx], new_start_adjust) for ndx in range(3)]
     ).T
 
-    acq_prf = h5dict["science"]["LSAR"]["RSLC"]["swaths"][freq_str][
+    acq_prf = h5dict["science"][band]["RSLC"]["swaths"][freq_str][
         "nominalAcquisitionPRF"
     ]["__value__"]
     num_pulses = int(np.round(collect_duration * acq_prf))
@@ -457,18 +459,24 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
         dk1 = -0.5 / col_ss
         dk2 = -dk1
 
-    row_weighting = h5dict["science"]["LSAR"]["RSLC"]["metadata"][
+    row_weighting = h5dict["science"][band]["RSLC"]["metadata"][
         "processingInformation"
     ]["parameters"]["rangeChirpWeighting"]
-    col_weighting = h5dict["science"]["LSAR"]["RSLC"]["metadata"][
+    col_weighting = h5dict["science"][band]["RSLC"]["metadata"][
         "processingInformation"
     ]["parameters"]["azimuthChirpWeighting"]
     row_wgts = row_weighting["__value__"]
     row_wgts = row_wgts[row_wgts > 0]
+    if row_wgts[0] > row_wgts[len(row_wgts) // 2]:
+        # some S-band data has folded weights
+        row_wgts = np.fft.fftshift(row_wgts)
     row_win_name = row_weighting["window_name"]
     row_win_shape = row_weighting["window_shape"]
     col_wgts = col_weighting["__value__"]
     col_wgts = col_wgts[col_wgts > 0]
+    if col_wgts[0] > col_wgts[len(col_wgts) // 2]:
+        # some S-band data has folded weights
+        col_wgts = np.fft.fftshift(col_wgts)
     row_broadening_factor = utils.broadening_from_amp(row_wgts)
     col_broadening_factor = utils.broadening_from_amp(col_wgts)
     row_imp_res_wid = row_broadening_factor / row_imp_res_bw
@@ -662,12 +670,11 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
 
     # Grab the data
     with h5py.File(h5_filename, "r") as h5file:
-        datapath = f"science/LSAR/RSLC/swaths/{freq_str}/{polarization}"
+        h5dict = _dictify_hdf(h5file)
+        band = _determine_band(h5dict)
+        datapath = f"science/{band}/RSLC/swaths/{freq_str}/{polarization}"
         data_arr = np.asarray(h5file[datapath])
-        dtype = data_arr.dtype
-        view_dtype = sksicd.PIXEL_TYPES[pixel_type]["dtype"].newbyteorder(
-            dtype.byteorder
-        )
+        view_dtype = np.dtype("complex64").newbyteorder(data_arr.dtype.byteorder)
         complex_data_arr = np.squeeze(data_arr.view(view_dtype))
     complex_data_arr = np.transpose(complex_data_arr)
     if look > 0:
@@ -705,19 +712,29 @@ def hdf5_to_sicd(h5_filename, sicd_filename, frequency, polarization, classifica
 
 
 def discover_images(h5_filename):
-    def as_str(item):
-        return item[...].astype(str).tolist()
-
     images = list()
     with h5py.File(h5_filename, "r") as h5file:
-        frequencies = as_str(h5file["/science/LSAR/identification/listOfFrequencies"])
+        h5dict = _dictify_hdf(h5file)
+        band = _determine_band(h5dict)
+        frequencies = h5dict["science"][band]["identification"]["listOfFrequencies"][
+            "__value__"
+        ]
+
         for freq in frequencies:
-            path = "/science/LSAR/RSLC/swaths/frequency" + freq + "/listOfPolarizations"
-            polarizations = as_str(h5file[path])
+            polarizations = h5dict["science"][band]["RSLC"]["swaths"][
+                "frequency" + freq
+            ]["listOfPolarizations"]["__value__"]
             for pol in polarizations:
                 images.append((freq, pol))
 
     return images
+
+
+def _determine_band(h5dict):
+    for key in ("LSAR", "SSAR"):
+        if key in h5dict["science"]:
+            return key
+    raise RuntimeError("Failed to find LSAR or SSAR")
 
 
 def main(args=None):
